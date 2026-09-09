@@ -13,6 +13,10 @@ Ultralight **executable routing-tree** micro-framework for PHP 8.3+. Inspired by
 Runs on **PHP-FPM**, `php -S`, Apache, FrankenPHP (with or without worker mode), RoadRunner, and Swoole. FrankenPHP is an optional fast path, not a requirement.
 
 ```php
+<?php
+
+declare(strict_types=1);
+
 require __DIR__ . '/vendor/autoload.php';
 
 use Stem\App;
@@ -36,7 +40,7 @@ $app->run();
 ```
 
 ```bash
-composer require alencarfreire/stem
+composer require alencarfreire/stem:^0.2
 php -S localhost:8080 index.php
 ```
 

@@ -11,7 +11,7 @@ This file is for AI agents **using or extending** StemPHP. Prefer it over scrapi
 ## Install
 
 ```bash
-composer require alencarfreire/stem:^0.1
+composer require alencarfreire/stem:^0.2
 ```
 
 PHP >= 8.3. Optional: ext-frankenphp, ext-swoole, spiral/roadrunner-http (examples only).
@@ -21,6 +21,9 @@ PHP >= 8.3. Optional: ext-frankenphp, ext-swoole, spiral/roadrunner-http (exampl
 Save as `index.php` next to `vendor/`, then `php -S localhost:8080 index.php`.
 
 ```php
+<?php
+declare(strict_types=1);
+
 require __DIR__ . '/vendor/autoload.php';
 
 use Stem\App;

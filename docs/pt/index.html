@@ -89,7 +89,7 @@
         <h2>Instalar</h2>
         <div class="prewrap" data-lang="BASH">
           <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copiar</button></div>
-          <pre><code class="language-bash">composer require alencarfreire/stem</code></pre>
+          <pre><code class="language-bash">composer require alencarfreire/stem:^0.2</code></pre>
         </div>
         <p>Exige PHP 8.3+. FrankenPHP, RoadRunner e Swoole são opcionais. O <code>require</code> do core é só <code>php</code>.</p>
       </section>
@@ -99,7 +99,11 @@
         <p>Crie <code>index.php</code> na raiz do seu projeto (ao lado de <code>vendor/</code>):</p>
         <div class="prewrap" data-lang="PHP">
           <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copiar</button></div>
-          <pre><code class="language-php">require __DIR__ . '/vendor/autoload.php';
+          <pre><code class="language-php">&lt;?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/vendor/autoload.php';
 
 use Stem\App;
 use Stem\Request;
