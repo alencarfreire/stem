@@ -1,0 +1,133 @@
+# StemPHP
+
+> Ultralight executable routing-tree micro-framework for PHP 8.3+. Packagist: alencarfreire/stem. Namespace: Stem\. Zero runtime dependencies. Current: v0.1.0.
+
+Human docs: https://alencarfreire.github.io/stem/ (EN) · https://alencarfreire.github.io/stem/pt/ (pt-BR)
+Source: https://github.com/alencarfreire/stem
+Maintainer agent guide (this repo): /AGENTS.md
+
+This file is for AI agents **using or extending** StemPHP. Prefer it over scraping HTML docs.
+
+## Install
+
+```bash
+composer require alencarfreire/stem:^0.1
+```
+
+PHP >= 8.3. Optional: ext-frankenphp, ext-swoole, spiral/roadrunner-http (examples only).
+
+## Canonical app
+
+```php
+use Stem\App;
+use Stem\Request;
+
+$app = new App();
+$app->route(function (Request $r): void {
+    $r->root(fn () => $r->json(['message' => 'StemPHP API']));
+    $r->on('users', function () use ($r): void {
+        $r->get(fn () => $r->json([['id' => 1, 'name' => 'John']]));
+        $r->post(fn () => $r->json(['id' => 2], 201));
+        $r->onInt(function (int $id) use ($r): void {
+            $r->get(fn () => $r->json(['id' => $id, 'name' => 'John']));
+            $r->delete(fn () => $r->halt(204));
+        });
+    });
+});
+$app->run(); // FPM / php -S
+```
+
+## Mental model
+
+The route closure **executes every request** (Roda). Matchers consume remaining path segments. A hit sets `$done`; sibling matchers no-op. No route compilation.
+
+- Total miss → HTTP 404 `Not Found`
+- Branch (`on`/`onInt`/`onParam`) taken but no leaf write → HTTP 200 empty (no backtracking)
+- `get()`/`post()`/`put()`/`delete()`/`patch()` without a segment are **terminal** (method AND remaining empty). This differs from Roda `r.get`.
+
+## Callbacks
+
+Do **not** type-hint `Request` on matcher callbacks. Capture `$r` from `route(function (Request $r)` via `use ($r)` or arrow functions. Only `onInt` passes `int`; `onParam` passes `string`.
+
+Wrong: `$r->on('users', function (Request $r) { ... })` → ArgumentCountError.
+Right: `$r->on('users', function () use ($r) { ... })`
+
+## Matchers
+
+| Call | When it runs |
+|---|---|
+| `$r->on('users', $cb)` | remaining starts with `users` (prefix) |
+| `$r->is('users', $cb)` | remaining is exactly `/users` |
+| `$r->is($cb)` | remaining empty |
+| `$r->root($cb)` | remaining empty, any HTTP method |
+| `$r->get($cb)` (and post/put/delete/patch) | that method and remaining empty |
+| `$r->get('about', $cb)` | GET and remaining exactly `/about` |
+| `$r->onInt($cb)` | next segment integer (`0`,`42`; not `01`,`-1`, overflow) |
+| `$r->onParam($cb)` | next non-empty segment as string |
+| `$r->json($data, $status=200)` | write JSON, set done, no throw |
+| `$r->html($html, $status=200)` | write HTML, set done, no throw |
+| `$r->halt($status, $body='', $headers=[])` | write + throw HaltException (`never`) |
+
+Path: trailing slash stripped except `/`; `//` collapsed; `?`/`#` dropped; decode per segment.
+
+## Kernel
+
+```php
+$app->route(Closure): self     // once; second call LogicException
+$app->handle(Request): Response
+$app->run(): void              // fromGlobals + handle + send
+```
+
+`handle()` catches only `Stem\Exceptions\HaltException`. Other throwables propagate.
+
+## Request / Response (public)
+
+```
+Request::fromGlobals(): self          // inside worker loop, never at boot
+Request::create(string $method, string $path, array $headers=[], array $query=[], string $body=''): self
+method(): string
+path(): string                        // normalized, offset 0
+remaining(): string                   // unconsumed
+header(string $name): ?string         // lazy $_SERVER
+headers(): array
+query(): array
+rawBody(): string                     // GET/HEAD skipped
+response(): Response                  // lazy
+isDone(): bool
+
+Response::status(): int
+headers(): array
+body(): string
+withStatus / withHeader / withBody    // mutable fluent; CR/LF rejected
+writeJson / writeHtml
+send(): void                          // idempotent
+```
+
+## Isolation (workers)
+
+Reuse `App`. Never reuse `Request`. No static request fields. FrankenPHP:
+
+```php
+use Stem\Integrations\FrankenPhpWorker;
+FrankenPhpWorker::run($app, maxRequests: 0, collectEvery: 0);
+```
+
+`$app` outside the loop. `Request::fromGlobals()` inside. RoadRunner/Swoole: map to `Request::create`, then `handle()`, write status/headers/body. See `examples/`.
+
+## Classes
+
+- `Stem\App`
+- `Stem\Request`
+- `Stem\Response`
+- `Stem\Router` (@internal path cursor)
+- `Stem\Exceptions\HaltException`
+- `Stem\Integrations\FrankenPhpWorker`
+
+## Do not
+
+- Add core Composer deps, PSR-7, middleware, sessions, views, DI.
+- Use `ReflectionFunction` to support mixed callback arities.
+- Throw on `json()`/`html()`.
+- Call `fromGlobals()` at worker bootstrap.
+- Enable `gc_collect_cycles` per request by default.
+- Assume `get($cb)` matches leftover path (it does not).

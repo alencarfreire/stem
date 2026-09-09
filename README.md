@@ -8,7 +8,7 @@
 
 Ultralight **executable routing-tree** micro-framework for PHP 8.3+. Inspired by [Roda](https://roda.jeremyevans.net/) (Ruby). Zero runtime dependencies.
 
-**Docs:** [English](https://alencarfreire.github.io/stem/) · [Português (Brasil)](https://alencarfreire.github.io/stem/pt/)
+**Docs:** [English](https://alencarfreire.github.io/stem/) · [Português (Brasil)](https://alencarfreire.github.io/stem/pt/) · [llms.txt](https://alencarfreire.github.io/stem/llms.txt)
 
 Runs on **PHP-FPM**, `php -S`, Apache, FrankenPHP (with or without worker mode), RoadRunner, and Swoole. FrankenPHP is an optional fast path, not a requirement.
 
@@ -119,6 +119,11 @@ composer format
 ```
 
 Requires PHP 8.3+. CI runs 8.3 and 8.4.
+
+## AI agents
+
+- Maintain this repo: [`AGENTS.md`](AGENTS.md)
+- Consume the API from another project: [`docs/llms.txt`](https://alencarfreire.github.io/stem/llms.txt)
 
 ## License
 
