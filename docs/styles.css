@@ -315,7 +315,7 @@ tr:last-child td {
 code,
 kbd {
   font-family: var(--mono);
-  font-size: 0.84em;
+  font-size: 0.9em;
 }
 
 p code,
@@ -373,8 +373,8 @@ pre[class*="language-"] {
   padding: 1rem 1.05rem 1.1rem !important;
   background: transparent !important;
   font-family: var(--mono);
-  font-size: 0.82rem;
-  line-height: 1.6;
+  font-size: 0.9375rem;
+  line-height: 1.65;
   color: var(--code-ink);
 }
 
@@ -454,7 +454,7 @@ pre[class*="language-"] {
   border-radius: var(--radius);
   background: var(--surface);
   font-family: var(--mono);
-  font-size: 0.8rem;
+  font-size: 0.875rem;
 }
 
 .tree .row {
