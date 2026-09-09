@@ -349,6 +349,61 @@ final class Request
     }
 
     /**
+     * Exact remaining segment as int (does not swallow `/users/1/posts`).
+     *
+     * @param callable(int): void $callback
+     */
+    public function isInt(callable $callback): void
+    {
+        if ($this->isDone()) {
+            return;
+        }
+
+        $id = $this->router->consumeExactInt();
+        if ($id === null) {
+            return;
+        }
+
+        $callback($id);
+        $this->seal();
+    }
+
+    /**
+     * Exact remaining segment as string.
+     *
+     * @param callable(string): void $callback
+     */
+    public function isParam(callable $callback): void
+    {
+        if ($this->isDone()) {
+            return;
+        }
+
+        $param = $this->router->consumeExactParam();
+        if ($param === null) {
+            return;
+        }
+
+        $callback($param);
+        $this->seal();
+    }
+
+    /**
+     * Run another routing closure on the current remaining path. Does not seal;
+     * if the branch writes nothing, later siblings can still match.
+     *
+     * @param callable(Request): void $branch
+     */
+    public function run(callable $branch): void
+    {
+        if ($this->isDone()) {
+            return;
+        }
+
+        $branch($this);
+    }
+
+    /**
      * @param string|callable(): void $segmentOrCallback
      * @param (callable(): void)|null $callback
      */

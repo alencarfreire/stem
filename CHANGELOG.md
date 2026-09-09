@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+- `$r->isInt()` / `$r->isParam()` — exact remaining segment (does not swallow `/users/1/posts`)
+- `$r->run(callable(Request): void)` — compose routing files without sealing on miss
+
 ## 0.2.0 — 2026-09-09
 
 

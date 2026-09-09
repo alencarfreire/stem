@@ -164,8 +164,11 @@ $app-&gt;run();</code></pre>
             <tr><td><code>$r-&gt;get($cb)</code> / <code>post</code> / <code>put</code> / <code>delete</code> / <code>patch</code></td><td>Método HTTP <em>e</em> path restante vazio (terminal).</td></tr>
             <tr><td><code>$r-&gt;get('about', $cb)</code></td><td>Método + restante exato <code>/about</code>.</td></tr>
             <tr><td><code>$r-&gt;root($cb)</code></td><td>Restante é <code>/</code> ou vazio. Qualquer método.</td></tr>
-            <tr><td><code>$r-&gt;onInt($cb)</code></td><td>Próximo segmento é inteiro: <code>0</code>, <code>42</code>. Não <code>01</code>, <code>-1</code>, overflow.</td></tr>
-            <tr><td><code>$r-&gt;onParam($cb)</code></td><td>Próximo segmento não vazio, como <code>string</code>.</td></tr>
+            <tr><td><code>$r-&gt;onInt($cb)</code></td><td>Prefixo: próximo segmento é inteiro (<code>0</code>, <code>42</code>; não <code>01</code>, <code>-1</code>).</td></tr>
+            <tr><td><code>$r-&gt;isInt($cb)</code></td><td>Inteiro restante exato. Não casa <code>/users/1/posts</code>.</td></tr>
+            <tr><td><code>$r-&gt;onParam($cb)</code></td><td>Prefixo: próximo segmento não vazio, como <code>string</code>.</td></tr>
+            <tr><td><code>$r-&gt;isParam($cb)</code></td><td>Um segmento restante, exato.</td></tr>
+            <tr><td><code>$r-&gt;run($branch)</code></td><td>Roda <code>function (Request $r)</code> no path atual. Não sela; um miss deixa o próximo irmão tentar. Serve para quebrar rotas em arquivos.</td></tr>
             <tr><td><code>$r-&gt;json($data, $status = 200)</code></td><td>Body JSON + content type. Marca <code>$done</code>. Não lança.</td></tr>
             <tr><td><code>$r-&gt;html($html, $status = 200)</code></td><td>Body HTML. Marca <code>$done</code>. Não lança.</td></tr>
             <tr><td><code>$r-&gt;halt($status, $body, $headers)</code></td><td>Saída antecipada (<code>never</code>). Lança <code>HaltException</code> interna.</td></tr>

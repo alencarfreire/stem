@@ -57,7 +57,10 @@ The route closure **runs on every request**. Matchers consume the remaining path
 | `$r->get('users', $cb)` | Method + exact remaining `/users`. |
 | `$r->root($cb)` | Remaining path is `/` or empty (any method). |
 | `$r->onInt($cb)` | Prefix: next segment is an integer (`0`, `42`; not `01`, `-1`). |
+| `$r->isInt($cb)` | Exact remaining integer (not `/users/1/posts`). |
 | `$r->onParam($cb)` | Prefix: next non-empty segment, as `string`. |
+| `$r->isParam($cb)` | Exact remaining one segment. |
+| `$r->run($branch)` | Run `function (Request $r)` on the current path; does not seal on miss. |
 | `$r->json($data, $status = 200)` | JSON body + `Content-Type`. Sets `$done`. Does not throw. |
 | `$r->html($html, $status = 200)` | HTML body. Sets `$done`. Does not throw. |
 | `$r->halt($status, $body, $headers)` | Early exit (`never`). Throws an internal `HaltException`. |

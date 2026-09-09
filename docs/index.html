@@ -164,8 +164,11 @@ $app-&gt;run();</code></pre>
             <tr><td><code>$r-&gt;get($cb)</code> / <code>post</code> / <code>put</code> / <code>delete</code> / <code>patch</code></td><td>HTTP method <em>and</em> remaining path empty (terminal).</td></tr>
             <tr><td><code>$r-&gt;get('about', $cb)</code></td><td>Method + exact remaining <code>/about</code>.</td></tr>
             <tr><td><code>$r-&gt;root($cb)</code></td><td>Remaining is <code>/</code> or empty. Any method.</td></tr>
-            <tr><td><code>$r-&gt;onInt($cb)</code></td><td>Next segment is an integer: <code>0</code>, <code>42</code>. Not <code>01</code>, <code>-1</code>, overflow.</td></tr>
-            <tr><td><code>$r-&gt;onParam($cb)</code></td><td>Next non-empty segment as <code>string</code>.</td></tr>
+            <tr><td><code>$r-&gt;onInt($cb)</code></td><td>Prefix: next segment is an integer (<code>0</code>, <code>42</code>; not <code>01</code>, <code>-1</code>).</td></tr>
+            <tr><td><code>$r-&gt;isInt($cb)</code></td><td>Exact remaining integer. Does not match <code>/users/1/posts</code>.</td></tr>
+            <tr><td><code>$r-&gt;onParam($cb)</code></td><td>Prefix: next non-empty segment as <code>string</code>.</td></tr>
+            <tr><td><code>$r-&gt;isParam($cb)</code></td><td>Exact remaining one segment.</td></tr>
+            <tr><td><code>$r-&gt;run($branch)</code></td><td>Run <code>function (Request $r)</code> on the current path. Does not seal; a miss lets the next sibling run. Use to split routes across files.</td></tr>
             <tr><td><code>$r-&gt;json($data, $status = 200)</code></td><td>JSON body + content type. Sets <code>$done</code>. Does not throw.</td></tr>
             <tr><td><code>$r-&gt;html($html, $status = 200)</code></td><td>HTML body. Sets <code>$done</code>. Does not throw.</td></tr>
             <tr><td><code>$r-&gt;halt($status, $body, $headers)</code></td><td>Early exit (<code>never</code>). Throws internal <code>HaltException</code>.</td></tr>

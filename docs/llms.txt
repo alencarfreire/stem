@@ -73,7 +73,10 @@ Right: `$r->on('users', function () use ($r) { ... })`
 | `$r->get($cb)` (and post/put/delete/patch) | that method and remaining empty |
 | `$r->get('about', $cb)` | GET and remaining exactly `/about` |
 | `$r->onInt($cb)` | next segment integer (`0`,`42`; not `01`,`-1`, overflow) |
+| `$r->isInt($cb)` | exact remaining integer (not `/users/1/posts`) |
 | `$r->onParam($cb)` | next non-empty segment as string |
+| `$r->isParam($cb)` | exact remaining one segment |
+| `$r->run($branch)` | `callable(Request): void` on current path; does not seal |
 | `$r->json($data, $status=200)` | write JSON, set done, no throw |
 | `$r->html($html, $status=200)` | write HTML, set done, no throw |
 | `$r->halt($status, $body='', $headers=[])` | write + throw HaltException (`never`) |

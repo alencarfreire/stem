@@ -156,6 +156,15 @@ final class Router
         return true;
     }
 
+    public function consumeExactInt(): ?int
+    {
+        if ($this->offset !== $this->count - 1) {
+            return null;
+        }
+
+        return $this->consumeInt();
+    }
+
     public function consumeInt(): ?int
     {
         if ($this->offset === $this->count) {
@@ -181,6 +190,15 @@ final class Router
         $this->offset++;
 
         return $int;
+    }
+
+    public function consumeExactParam(): ?string
+    {
+        if ($this->offset !== $this->count - 1) {
+            return null;
+        }
+
+        return $this->consumeParam();
     }
 
     public function consumeParam(): ?string

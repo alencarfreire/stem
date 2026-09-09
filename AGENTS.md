@@ -63,7 +63,10 @@ Do not invent new public classes without a product reason. Prefer extending `Req
 | `get/post/put/delete/patch/options($cb)` | method **and** `atEnd()` (terminal; **not** Roda’s bare `r.get`). `HEAD` matches `get()`. | write if callback runs |
 | `get($seg, $cb)` | method + `consumeExact($seg)` | same |
 | `onInt($cb)` | `ctype_digit`, no leading zeros except `"0"`, `(int)` round-trip (overflow reject) | `$cb($id)` then seal |
+| `isInt($cb)` | same, but remaining must be exactly that one segment | `$cb($id)` then seal |
 | `onParam($cb)` | next non-empty segment | `$cb($seg)` then seal |
+| `isParam($cb)` | exact remaining one segment | `$cb($seg)` then seal |
+| `run($branch)` | invoke `callable(Request): void` on current remaining path | does **not** seal; miss lets siblings run |
 | `json` / `html` / `redirect` / `noContent` | write response | written, **no throw** |
 | `halt` | write response | written, **throw HaltException** |
 

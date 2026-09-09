@@ -153,6 +153,63 @@ final class RoutingTreeTest extends TestCase
         self::assertSame('{"name":"john-doe"}', $this->handle($app, 'GET', '/users/john-doe')->body());
     }
 
+    public function testIsIntDoesNotSwallowExtraSegments(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->on('users', function () use ($r): void {
+                $r->isInt(function (int $id) use ($r): void {
+                    $r->get(fn () => $r->json(['id' => $id]));
+                });
+                $r->onInt(function (int $id) use ($r): void {
+                    $r->on('posts', function () use ($r, $id): void {
+                        $r->get(fn () => $r->json(['user' => $id, 'posts' => true]));
+                    });
+                });
+            });
+        });
+
+        self::assertSame('{"id":7}', $this->handle($app, 'GET', '/users/7')->body());
+        self::assertSame('{"user":7,"posts":true}', $this->handle($app, 'GET', '/users/7/posts')->body());
+        self::assertSame(404, $this->handle($app, 'GET', '/users/abc')->status());
+    }
+
+    public function testIsParamIsExactRemaining(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->on('u', function () use ($r): void {
+                $r->isParam(function (string $name) use ($r): void {
+                    $r->get(fn () => $r->json(['name' => $name]));
+                });
+            });
+        });
+
+        self::assertSame('{"name":"ada"}', $this->handle($app, 'GET', '/u/ada')->body());
+        self::assertSame(404, $this->handle($app, 'GET', '/u/ada/edit')->status());
+    }
+
+    public function testRunComposesBranchesWithoutSealingOnMiss(): void
+    {
+        $users = static function (Request $r): void {
+            $r->on('users', function () use ($r): void {
+                $r->get(fn () => $r->json(['from' => 'users']));
+            });
+        };
+        $posts = static function (Request $r): void {
+            $r->on('posts', function () use ($r): void {
+                $r->get(fn () => $r->json(['from' => 'posts']));
+            });
+        };
+
+        $app = $this->app(function (Request $r) use ($users, $posts): void {
+            $r->run($users);
+            $r->run($posts);
+        });
+
+        self::assertSame('{"from":"users"}', $this->handle($app, 'GET', '/users')->body());
+        self::assertSame('{"from":"posts"}', $this->handle($app, 'GET', '/posts')->body());
+        self::assertSame(404, $this->handle($app, 'GET', '/other')->status());
+    }
+
     public function testNestedUsersIdGet(): void
     {
         $app = $this->canonical();
