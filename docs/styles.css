@@ -13,6 +13,7 @@
   --code-bg: #1c2330;
   --code-ink: #e8edf4;
   --sidebar: 16.5rem;
+  --frame: 72rem;
   --radius: 8px;
   --sans: "Source Sans 3", "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -63,18 +64,26 @@ a:hover {
   padding: 0.4rem 0.7rem;
 }
 
+.frame {
+  width: min(var(--frame), 100%);
+  margin-inline: auto;
+}
+
 .topbar {
   position: sticky;
   top: 0;
   z-index: 20;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+}
+
+.topbar-inner {
   display: flex;
   align-items: center;
   gap: 0.85rem;
   height: 3.6rem;
-  padding: 0 1.25rem;
-  background: rgba(255, 255, 255, 0.92);
-  border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(12px);
+  padding: 0 1.5rem;
 }
 
 .brand {
@@ -150,6 +159,8 @@ a:hover {
   display: grid;
   grid-template-columns: var(--sidebar) minmax(0, 1fr);
   min-height: calc(100vh - 3.6rem);
+  background: var(--surface);
+  border-inline: 1px solid var(--line);
 }
 
 .sidebar {
@@ -191,8 +202,8 @@ a:hover {
 }
 
 .content {
-  max-width: 48.5rem;
-  padding: 2.4rem 2.4rem 5rem;
+  min-width: 0;
+  padding: 2.4rem 2.6rem 5rem;
 }
 
 .hero {
@@ -563,6 +574,7 @@ footer {
 
   .shell {
     grid-template-columns: 1fr;
+    border-inline: 0;
   }
 
   .sidebar {
