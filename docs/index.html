@@ -11,7 +11,7 @@
   <link rel="alternate" hreflang="x-default" href="https://alencarfreire.github.io/stem/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -54,9 +54,9 @@
 
     <main class="content" id="main">
       <header class="hero" id="intro">
-        <p class="kicker">PHP 8.3+ · MIT · zero runtime deps</p>
-        <h1>The path is consumed, not compiled.</h1>
-        <p class="lede">StemPHP is a Roda-style executable routing tree. The route closure runs on every request. Matchers eat URI segments as they go. There is no route table, no regex dump, no middleware stack in the core.</p>
+        <p class="kicker">alencarfreire/stem · v0.1.0 · PHP 8.3+</p>
+        <h1>Documentation</h1>
+        <p class="lede">StemPHP is an executable routing-tree micro-framework inspired by Roda. The route closure runs on every request. Matchers consume URI segments as they go. There is no compiled route table and no middleware stack in the core.</p>
         <ul class="pills">
           <li>PHP-FPM</li>
           <li>php -S</li>
@@ -68,9 +68,9 @@
 
       <section id="install">
         <h2>Install</h2>
-        <div class="prewrap">
-          <button class="copy" type="button" data-copy>copy</button>
-          <pre>composer require alencarfreire/stem</pre>
+        <div class="prewrap" data-lang="BASH">
+          <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-bash">composer require alencarfreire/stem</code></pre>
         </div>
         <p>Requires PHP 8.3+. FrankenPHP, RoadRunner and Swoole are optional. The core <code>require</code> is only <code>php</code>.</p>
       </section>
@@ -78,9 +78,9 @@
       <section id="quickstart">
         <h2>Quick start</h2>
         <p>Front controller for PHP-FPM or <code>php -S</code>:</p>
-        <div class="prewrap">
-          <button class="copy" type="button" data-copy>copy</button>
-          <pre>use Stem\App;
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">use Stem\App;
 use Stem\Request;
 
 $app = new App();
@@ -99,11 +99,11 @@ $app-&gt;route(function (Request $r): void {
     });
 });
 
-$app-&gt;run();</pre>
+$app-&gt;run();</code></pre>
         </div>
-        <div class="prewrap">
-          <button class="copy" type="button" data-copy>copy</button>
-          <pre>php -S localhost:8080 examples/basic/index.php</pre>
+        <div class="prewrap" data-lang="BASH">
+          <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-bash">php -S localhost:8080 examples/basic/index.php</code></pre>
         </div>
       </section>
 
@@ -151,11 +151,11 @@ $app-&gt;run();</pre>
       <section id="callbacks">
         <h2>Callbacks and <code>$r</code></h2>
         <p>Matchers do not inject <code>Request</code> as an argument. That keeps Reflection off the hot path. Capture <code>$r</code> from the <code>route()</code> closure with <code>use ($r)</code> or arrows:</p>
-        <div class="prewrap">
-          <button class="copy" type="button" data-copy>copy</button>
-          <pre>$r-&gt;on('users', function () use ($r): void {
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">$r-&gt;on('users', function () use ($r): void {
     $r-&gt;onInt(fn (int $id) =&gt; $r-&gt;json(['id' =&gt; $id]));
-});</pre>
+});</code></pre>
         </div>
         <p>Only <code>onInt</code> / <code>onParam</code> pass extra arguments (the capture). <code>function (Request $r)</code> as a matcher parameter will error.</p>
       </section>
@@ -214,11 +214,11 @@ $app-&gt;run();</pre>
 
       <section id="app">
         <h2>App lifecycle</h2>
-        <div class="prewrap">
-          <button class="copy" type="button" data-copy>copy</button>
-          <pre>$app-&gt;route(function (Request $r): void { /* once */ });
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">$app-&gt;route(function (Request $r): void { /* once */ });
 $response = $app-&gt;handle($request);   // per request
-$app-&gt;run();                          // fromGlobals + handle + send</pre>
+$app-&gt;run();                          // fromGlobals + handle + send</code></pre>
         </div>
         <ul>
           <li><code>route()</code> may be called once. A second call throws <code>LogicException</code>.</li>
@@ -247,15 +247,15 @@ $app-&gt;run();                          // fromGlobals + handle + send</pre>
             <p>Same contract: <code>handle()</code> is the kernel. Example in <code>examples/swoole/server.php</code>.</p>
           </article>
         </div>
-        <div class="prewrap">
-          <button class="copy" type="button" data-copy>copy</button>
-          <pre>use Stem\Integrations\FrankenPhpWorker;
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">use Stem\Integrations\FrankenPhpWorker;
 
 FrankenPhpWorker::run(
     $app,
     maxRequests: (int) ($_SERVER['MAX_REQUESTS'] ?? 0),
     collectEvery: 0, // gc_collect_cycles off; set 128 if an extension leaks
-);</pre>
+);</code></pre>
         </div>
       </section>
 
@@ -280,10 +280,10 @@ FrankenPhpWorker::run(
           <li>GET/HEAD skip <code>php://input</code>. Headers from <code>$_SERVER</code> are lazy.</li>
         </ul>
         <p>Measure on your hardware. Do not publish invented req/s:</p>
-        <div class="prewrap">
-          <button class="copy" type="button" data-copy>copy</button>
-          <pre>php -S 127.0.0.1:8080 examples/bench/hello.php
-wrk -t4 -c64 -d10s http://127.0.0.1:8080/</pre>
+        <div class="prewrap" data-lang="BASH">
+          <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-bash">php -S 127.0.0.1:8080 examples/bench/hello.php
+wrk -t4 -c64 -d10s http://127.0.0.1:8080/</code></pre>
         </div>
       </section>
 
@@ -312,6 +312,10 @@ wrk -t4 -c64 -d10s http://127.0.0.1:8080/</pre>
       </footer>
     </main>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup-templating.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-php.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

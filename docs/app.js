@@ -67,15 +67,19 @@ sections.forEach((section) => spy.observe(section));
 document.querySelectorAll("[data-copy]").forEach((button) => {
   button.textContent = i18n.copy;
   button.addEventListener("click", async () => {
-    const pre = button.parentElement?.querySelector("pre");
-    if (!pre) return;
-    await navigator.clipboard.writeText(pre.innerText);
+    const block = button.closest(".prewrap")?.querySelector("pre");
+    if (!block) return;
+    await navigator.clipboard.writeText(block.innerText);
     button.textContent = i18n.copied;
     setTimeout(() => {
       button.textContent = i18n.copy;
     }, 1200);
   });
 });
+
+if (typeof Prism !== "undefined") {
+  Prism.highlightAll();
+}
 
 function consume(remaining, segment) {
   if (remaining.length === 0) return null;
