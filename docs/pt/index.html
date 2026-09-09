@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StemPHP — árvore de roteamento executável</title>
+  <meta name="description" content="StemPHP é um micro-framework ultraleve de roteamento em árvore executável para PHP 8.3+. Zero dependências de runtime. Roda em FPM, FrankenPHP, RoadRunner e Swoole.">
+  <link rel="canonical" href="https://alencarfreire.github.io/stem/pt/">
+  <link rel="alternate" hreflang="en" href="https://alencarfreire.github.io/stem/">
+  <link rel="alternate" hreflang="pt-BR" href="https://alencarfreire.github.io/stem/pt/">
+  <link rel="alternate" hreflang="x-default" href="https://alencarfreire.github.io/stem/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Pular para o conteúdo</a>
+  <header class="topbar">
+    <a class="brand" href="./">StemPHP <small>docs</small></a>
+    <div class="langs" aria-label="Idioma">
+      <a href="../" lang="en">EN</a>
+      <a href="./" lang="pt-BR" aria-current="page">PT</a>
+    </div>
+    <button class="menu-btn" id="menu" type="button" aria-label="Abrir menu">Menu</button>
+    <nav>
+      <a href="https://github.com/alencarfreire/stem">GitHub</a>
+      <a href="https://packagist.org/packages/alencarfreire/stem">Packagist</a>
+    </nav>
+  </header>
+
+  <div class="shell">
+    <aside class="sidebar" id="nav">
+      <h2>Começar</h2>
+      <a href="#intro">Por que uma árvore</a>
+      <a href="#install">Instalar</a>
+      <a href="#quickstart">Início rápido</a>
+      <h2>Roteamento</h2>
+      <a href="#tree">Como o matching funciona</a>
+      <a href="#matchers">Matchers</a>
+      <a href="#callbacks">Callbacks e <code>$r</code></a>
+      <a href="#playground">Playground de path</a>
+      <h2>HTTP</h2>
+      <a href="#request">Request</a>
+      <a href="#response">Response</a>
+      <a href="#app">Ciclo do App</a>
+      <h2>Executar</h2>
+      <a href="#runtimes">FPM, workers, Swoole</a>
+      <a href="#isolation">Isolamento</a>
+      <a href="#performance">Performance</a>
+      <h2>Referência</h2>
+      <a href="#api">Superfície da API</a>
+    </aside>
+
+    <main class="content" id="main">
+      <header class="hero" id="intro">
+        <p class="kicker">PHP 8.3+ · MIT · zero deps de runtime</p>
+        <h1>O path é consumido, não compilado.</h1>
+        <p class="lede">StemPHP é uma árvore de roteamento executável no estilo Roda. O closure de rotas roda a cada request. Os matchers comem segmentos da URI conforme avançam. Não há tabela de rotas, dump de regex nem stack de middleware no core.</p>
+        <ul class="pills">
+          <li>PHP-FPM</li>
+          <li>php -S</li>
+          <li>FrankenPHP</li>
+          <li>RoadRunner</li>
+          <li>Swoole</li>
+        </ul>
+      </header>
+
+      <section id="install">
+        <h2>Instalar</h2>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copiar</button>
+          <pre>composer require alencarfreire/stem</pre>
+        </div>
+        <p>Exige PHP 8.3+. FrankenPHP, RoadRunner e Swoole são opcionais. O <code>require</code> do core é só <code>php</code>.</p>
+      </section>
+
+      <section id="quickstart">
+        <h2>Início rápido</h2>
+        <p>Front controller para PHP-FPM ou <code>php -S</code>:</p>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copiar</button>
+          <pre>use Stem\App;
+use Stem\Request;
+
+$app = new App();
+
+$app-&gt;route(function (Request $r): void {
+    $r-&gt;root(fn () =&gt; $r-&gt;json(['message' =&gt; 'StemPHP API']));
+
+    $r-&gt;on('users', function () use ($r): void {
+        $r-&gt;get(fn () =&gt; $r-&gt;json([['id' =&gt; 1, 'name' =&gt; 'John']]));
+        $r-&gt;post(fn () =&gt; $r-&gt;json(['id' =&gt; 2], 201));
+
+        $r-&gt;onInt(function (int $id) use ($r): void {
+            $r-&gt;get(fn () =&gt; $r-&gt;json(['id' =&gt; $id, 'name' =&gt; 'John']));
+            $r-&gt;delete(fn () =&gt; $r-&gt;halt(204));
+        });
+    });
+});
+
+$app-&gt;run();</pre>
+        </div>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copiar</button>
+          <pre>php -S localhost:8080 examples/basic/index.php</pre>
+        </div>
+      </section>
+
+      <section id="tree">
+        <h2>Como o matching funciona</h2>
+        <p>O Roda não compila rotas numa trie no boot. O StemPHP faz o mesmo: o <code>App</code> guarda um closure. O <code>handle()</code> executa. Cada matcher é um <code>if</code> que pode consumir o próximo segmento.</p>
+        <div class="tree" aria-hidden="true">
+          <div class="row"><span class="dim">GET /users/7</span></div>
+          <div class="row"><span class="dim">restante</span> <span class="seg">/users/7</span></div>
+          <div class="row"><span class="dim">on('users')</span> <span class="seg">consome users</span> <span class="dim">→ /7</span></div>
+          <div class="row"><span class="dim">get() atEnd?</span> <span class="dim">não — pula</span></div>
+          <div class="row"><span class="dim">onInt()</span> <span class="seg">captura 7</span> <span class="dim">→ vazio</span></div>
+          <div class="row"><span class="dim">get()</span> <span class="seg">folha terminal</span> <span class="dim">→ json</span></div>
+        </div>
+        <ul>
+          <li>Um matcher que casa roda o callback e marca <code>$done</code>. Irmãos naquele nível não rodam.</li>
+          <li>Se nada na árvore inteira casar, <code>handle()</code> devolve <strong>404</strong>.</li>
+          <li>Se um ramo casar (<code>on</code>/<code>onInt</code>) mas nenhuma folha escrever body, você leva <strong>200 vazio</strong> — o ramo já consumiu o path. Não há backtracking.</li>
+        </ul>
+      </section>
+
+      <section id="matchers">
+        <h2>Matchers</h2>
+        <table>
+          <thead>
+            <tr><th>Chamada</th><th>Significado</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>$r-&gt;on('users', $cb)</code></td><td>Prefixo. Consome <code>users</code> e entra no ramo.</td></tr>
+            <tr><td><code>$r-&gt;is('users', $cb)</code></td><td>Path restante exato <code>/users</code>.</td></tr>
+            <tr><td><code>$r-&gt;is($cb)</code></td><td>Path restante vazio.</td></tr>
+            <tr><td><code>$r-&gt;get($cb)</code> / <code>post</code> / <code>put</code> / <code>delete</code> / <code>patch</code></td><td>Método HTTP <em>e</em> path restante vazio (terminal).</td></tr>
+            <tr><td><code>$r-&gt;get('about', $cb)</code></td><td>Método + restante exato <code>/about</code>.</td></tr>
+            <tr><td><code>$r-&gt;root($cb)</code></td><td>Restante é <code>/</code> ou vazio. Qualquer método.</td></tr>
+            <tr><td><code>$r-&gt;onInt($cb)</code></td><td>Próximo segmento é inteiro: <code>0</code>, <code>42</code>. Não <code>01</code>, <code>-1</code>, overflow.</td></tr>
+            <tr><td><code>$r-&gt;onParam($cb)</code></td><td>Próximo segmento não vazio, como <code>string</code>.</td></tr>
+            <tr><td><code>$r-&gt;json($data, $status = 200)</code></td><td>Body JSON + content type. Marca <code>$done</code>. Não lança.</td></tr>
+            <tr><td><code>$r-&gt;html($html, $status = 200)</code></td><td>Body HTML. Marca <code>$done</code>. Não lança.</td></tr>
+            <tr><td><code>$r-&gt;halt($status, $body, $headers)</code></td><td>Saída antecipada (<code>never</code>). Lança <code>HaltException</code> interna.</td></tr>
+          </tbody>
+        </table>
+        <p class="note"><strong>Desvio do Roda:</strong> <code>get()</code> / <code>post()</code> sem segmento são terminais (método + restante vazio). O <code>r.get</code> nu do Roda casa GET mesmo com path sobrando — fácil engolir <code>/users/1/posts</code>. Coloque ramos <code>on()</code> aninhados <em>acima</em> da folha <code>get()</code>.</p>
+      </section>
+
+      <section id="callbacks">
+        <h2>Callbacks e <code>$r</code></h2>
+        <p>Matchers não injetam <code>Request</code> como argumento. Isso tira Reflection do caminho quente. Capture <code>$r</code> do closure de <code>route()</code> com <code>use ($r)</code> ou arrows:</p>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copiar</button>
+          <pre>$r-&gt;on('users', function () use ($r): void {
+    $r-&gt;onInt(fn (int $id) =&gt; $r-&gt;json(['id' =&gt; $id]));
+});</pre>
+        </div>
+        <p>Só <code>onInt</code> / <code>onParam</code> passam argumentos extra (a captura). <code>function (Request $r)</code> como parâmetro de matcher dá erro.</p>
+      </section>
+
+      <section id="playground">
+        <h2>Playground de path</h2>
+        <p>A mesma árvore do início rápido. Clique numa request e veja consume / miss / folha.</p>
+        <div class="playground">
+          <div class="paths">
+            <button type="button" data-play="GET /" aria-pressed="true">GET /</button>
+            <button type="button" data-play="GET /users">GET /users</button>
+            <button type="button" data-play="POST /users">POST /users</button>
+            <button type="button" data-play="GET /users/7">GET /users/7</button>
+            <button type="button" data-play="DELETE /users/7">DELETE /users/7</button>
+            <button type="button" data-play="GET /users/abc">GET /users/abc</button>
+            <button type="button" data-play="GET /nope">GET /nope</button>
+          </div>
+          <pre class="log" id="play-log"></pre>
+        </div>
+      </section>
+
+      <section id="request">
+        <h2>Request</h2>
+        <p><code>Request</code> é a mensagem HTTP e o contexto de roteamento (<code>$r</code>).</p>
+        <table>
+          <thead>
+            <tr><th>Método</th><th>Papel</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>Request::fromGlobals()</code></td><td>Handler FPM / worker. Chame <em>dentro</em> do loop por request.</td></tr>
+            <tr><td><code>Request::create($method, $path, $headers, $query, $body)</code></td><td>Testes, RoadRunner, Swoole.</td></tr>
+            <tr><td><code>method()</code> / <code>path()</code> / <code>remaining()</code></td><td>Verbo, path normalizado, sufixo não consumido.</td></tr>
+            <tr><td><code>header($name)</code> / <code>headers()</code></td><td>Lazy: <code>$_SERVER</code> só é varrido no primeiro acesso.</td></tr>
+            <tr><td><code>query()</code> / <code>rawBody()</code></td><td>Query string e body cru. GET/HEAD não leem <code>php://input</code>.</td></tr>
+            <tr><td><code>response()</code></td><td>Aloca <code>Response</code> na primeira escrita.</td></tr>
+          </tbody>
+        </table>
+        <p>Paths são normalizados: barra final removida (exceto <code>/</code>), <code>//</code> colapsado, query/fragment descartados, percent-decode por segmento.</p>
+      </section>
+
+      <section id="response">
+        <h2>Response</h2>
+        <p>Mutável e com escopo da request. <code>json()</code> / <code>html()</code> no <code>Request</code> escrevem aqui e marcam <code>$done</code>.</p>
+        <table>
+          <thead>
+            <tr><th>Método</th><th>Papel</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>status()</code> / <code>headers()</code> / <code>body()</code></td><td>Lê a mensagem atual.</td></tr>
+            <tr><td><code>withStatus</code> / <code>withHeader</code> / <code>withBody</code></td><td>Mutators fluentes. CR/LF em headers é rejeitado.</td></tr>
+            <tr><td><code>writeJson</code> / <code>writeHtml</code></td><td>Body + content type. JSON usa <code>JSON_THROW_ON_ERROR</code>.</td></tr>
+            <tr><td><code>send()</code></td><td><code>http_response_code</code>, headers, echo. Idempotente.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="app">
+        <h2>Ciclo do App</h2>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copiar</button>
+          <pre>$app-&gt;route(function (Request $r): void { /* uma vez */ });
+$response = $app-&gt;handle($request);   // por request
+$app-&gt;run();                          // fromGlobals + handle + send</pre>
+        </div>
+        <ul>
+          <li><code>route()</code> só pode ser chamado uma vez. A segunda chamada lança <code>LogicException</code>.</li>
+          <li><code>handle()</code> captura só <code>HaltException</code>. Outros throwables sobem para o SAPI.</li>
+          <li>O happy path (<code>json</code>/<code>html</code>) não lança.</li>
+        </ul>
+      </section>
+
+      <section id="runtimes">
+        <h2>Runtimes</h2>
+        <div class="grid-2">
+          <article class="card">
+            <h3>PHP-FPM / php -S</h3>
+            <p>Padrão. Aponte o document root para um script que chama <code>$app-&gt;run()</code>. Veja <code>examples/basic/index.php</code>.</p>
+          </article>
+          <article class="card">
+            <h3>FrankenPHP worker</h3>
+            <p>Opcional. Suba o <code>$app</code> uma vez, depois <code>FrankenPhpWorker::run($app)</code>. O <code>fromGlobals()</code> fica dentro do loop.</p>
+          </article>
+          <article class="card">
+            <h3>RoadRunner</h3>
+            <p>Sem require no Composer. Mapeie o request PSR-7 para <code>Request::create</code> e grave status/headers/body. Veja <code>examples/roadrunner/</code>.</p>
+          </article>
+          <article class="card">
+            <h3>Swoole</h3>
+            <p>O mesmo contrato: <code>handle()</code> é o kernel. Exemplo em <code>examples/swoole/server.php</code>.</p>
+          </article>
+        </div>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copiar</button>
+          <pre>use Stem\Integrations\FrankenPhpWorker;
+
+FrankenPhpWorker::run(
+    $app,
+    maxRequests: (int) ($_SERVER['MAX_REQUESTS'] ?? 0),
+    collectEvery: 0, // gc_collect_cycles off; use 128 se alguma extensão vazar
+);</pre>
+        </div>
+      </section>
+
+      <section id="isolation">
+        <h2>Isolamento</h2>
+        <p>Workers long-lived reutilizam a instância de <code>App</code>. Não podem reutilizar um <code>Request</code>.</p>
+        <ul>
+          <li>Nenhum estado estático de request em <code>App</code>, <code>Request</code>, <code>Response</code> ou <code>Router</code>.</li>
+          <li><code>handle()</code> sempre recebe um <code>Request</code> novo.</li>
+          <li><code>Response</code> nasce na primeira escrita e não é compartilhado entre requests.</li>
+          <li><code>Request::fromGlobals()</code> fica no handler, nunca no boot do worker.</li>
+        </ul>
+      </section>
+
+      <section id="performance">
+        <h2>Performance</h2>
+        <p>O custo de roteamento é <code>O(profundidade do path × irmãos naquele nível)</code>, não <code>O(total de rotas)</code>. É o modelo do Roda, não o matcher compilado do FastRoute.</p>
+        <ul>
+          <li>Sem regex, sem Reflection, sem exception em <code>json()</code> / <code>html()</code>.</li>
+          <li>Parse do path usa <code>strpos</code> / <code>explode</code>. <code>rawurldecode</code> só se a URI tiver <code>%</code>.</li>
+          <li><code>onInt</code> usa <code>ctype_digit</code> + <code>(int)</code>.</li>
+          <li>GET/HEAD não leem <code>php://input</code>. Headers de <code>$_SERVER</code> são lazy.</li>
+        </ul>
+        <p>Meça no seu hardware. Não publique req/s inventado:</p>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copiar</button>
+          <pre>php -S 127.0.0.1:8080 examples/bench/hello.php
+wrk -t4 -c64 -d10s http://127.0.0.1:8080/</pre>
+        </div>
+      </section>
+
+      <section id="api">
+        <h2>Superfície da API</h2>
+        <table>
+          <thead>
+            <tr><th>Classe</th><th>Papel</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>Stem\App</code></td><td>Kernel. <code>route</code>, <code>handle</code>, <code>run</code>.</td></tr>
+            <tr><td><code>Stem\Request</code></td><td>HTTP + contexto de roteamento.</td></tr>
+            <tr><td><code>Stem\Response</code></td><td>Status, headers, body, <code>send()</code>.</td></tr>
+            <tr><td><code>Stem\Router</code></td><td>Cursor interno de path (<code>@internal</code>).</td></tr>
+            <tr><td><code>Stem\Exceptions\HaltException</code></td><td>Só o <code>halt()</code>.</td></tr>
+            <tr><td><code>Stem\Integrations\FrankenPhpWorker</code></td><td>Loop opcional de worker.</td></tr>
+          </tbody>
+        </table>
+        <p>PHPUnit 8.3/8.4 no CI. <code>composer test</code> / <code>composer analyze</code> (PHPStan 9).</p>
+      </section>
+
+      <footer>
+        StemPHP é licenciado em MIT. Inspirado no <a href="https://roda.jeremyevans.net/">Roda</a> (Jeremy Evans).
+        Código: <a href="https://github.com/alencarfreire/stem">alencarfreire/stem</a>.
+      </footer>
+    </main>
+  </div>
+  <script src="../app.js"></script>
+</body>
+</html>

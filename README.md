@@ -8,7 +8,7 @@
 
 Ultralight **executable routing-tree** micro-framework for PHP 8.3+. Inspired by [Roda](https://roda.jeremyevans.net/) (Ruby). Zero runtime dependencies.
 
-**Docs:** [alencarfreire.github.io/stem](https://alencarfreire.github.io/stem/)
+**Docs:** [English](https://alencarfreire.github.io/stem/) · [Português (Brasil)](https://alencarfreire.github.io/stem/pt/)
 
 Runs on **PHP-FPM**, `php -S`, Apache, FrankenPHP (with or without worker mode), RoadRunner, and Swoole. FrankenPHP is an optional fast path, not a requirement.
 

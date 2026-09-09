@@ -111,6 +111,31 @@ a:hover {
   color: var(--ink);
 }
 
+.langs {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: 0.2rem;
+  padding: 0.12rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.langs a {
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  color: var(--muted);
+  text-decoration: none;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+}
+
+.langs a[aria-current="page"] {
+  background: var(--leaf-dim);
+  color: var(--leaf);
+}
+
 .menu-btn {
   display: none;
   margin-left: auto;

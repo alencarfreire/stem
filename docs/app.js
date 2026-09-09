@@ -1,3 +1,39 @@
+const locale = document.documentElement.lang.toLowerCase().startsWith("pt") ? "pt" : "en";
+const i18n = {
+  en: {
+    copy: "copy",
+    copied: "copied",
+    rootHit: "root() match → json({ message: StemPHP API })",
+    rootMiss: "root() miss",
+    onUsers: (rest) => `on('users') consume → remaining /${rest}`,
+    getList: "get() terminal → json([{ id: 1, name: John }])",
+    postCreate: "post() terminal → json({ id: 2 }, 201)",
+    onInt: (id, rest) => `onInt() capture ${id} → remaining /${rest}`,
+    getShow: (id) => `get() terminal → json({ id: ${id}, name: John })`,
+    del: "delete() → halt(204)",
+    emptyBranch: "branch taken, no leaf → 200 empty",
+    onIntMiss: "onInt() miss — branch already taken → 200 empty",
+    onUsersMiss: "on('users') miss",
+    notFound: "App::handle() → 404 Not Found",
+  },
+  pt: {
+    copy: "copiar",
+    copied: "copiado",
+    rootHit: "root() casa → json({ message: StemPHP API })",
+    rootMiss: "root() não casa",
+    onUsers: (rest) => `on('users') consome → restante /${rest}`,
+    getList: "get() folha → json([{ id: 1, name: John }])",
+    postCreate: "post() folha → json({ id: 2 }, 201)",
+    onInt: (id, rest) => `onInt() captura ${id} → restante /${rest}`,
+    getShow: (id) => `get() folha → json({ id: ${id}, name: John })`,
+    del: "delete() → halt(204)",
+    emptyBranch: "ramo tomado, sem folha → 200 vazio",
+    onIntMiss: "onInt() não casa — ramo já tomado → 200 vazio",
+    onUsersMiss: "on('users') não casa",
+    notFound: "App::handle() → 404 Not Found",
+  },
+}[locale];
+
 const nav = document.getElementById("nav");
 const menuBtn = document.getElementById("menu");
 const logEl = document.getElementById("play-log");
@@ -29,13 +65,14 @@ const spy = new IntersectionObserver(
 sections.forEach((section) => spy.observe(section));
 
 document.querySelectorAll("[data-copy]").forEach((button) => {
+  button.textContent = i18n.copy;
   button.addEventListener("click", async () => {
     const pre = button.parentElement?.querySelector("pre");
     if (!pre) return;
     await navigator.clipboard.writeText(pre.innerText);
-    button.textContent = "copied";
+    button.textContent = i18n.copied;
     setTimeout(() => {
-      button.textContent = "copy";
+      button.textContent = i18n.copy;
     }, 1200);
   });
 });
@@ -61,49 +98,49 @@ function route(method, path) {
   const log = (msg, kind = "") => lines.push({ msg, kind });
 
   if (!done && remaining.length === 0) {
-    log("root() match → json({ message: StemPHP API })", "hit");
+    log(i18n.rootHit, "hit");
     done = true;
   } else {
-    log("root() miss", "miss");
+    log(i18n.rootMiss, "miss");
   }
 
   if (!done) {
     const next = consume(remaining, "users");
     if (next) {
       remaining = next;
-      log(`on('users') consume → remaining /${remaining.join("/")}`, "hit");
+      log(i18n.onUsers(remaining.join("/")), "hit");
       if (method === "GET" && remaining.length === 0) {
-        log("get() terminal → json([{ id: 1, name: John }])", "hit");
+        log(i18n.getList, "hit");
         done = true;
       } else if (method === "POST" && remaining.length === 0) {
-        log("post() terminal → json({ id: 2 }, 201)", "hit");
+        log(i18n.postCreate, "hit");
         done = true;
       } else {
         const id = remaining[0] ? isInt(remaining[0]) : null;
         if (id !== null) {
           remaining = remaining.slice(1);
-          log(`onInt() capture ${id} → remaining /${remaining.join("/")}`, "hit");
+          log(i18n.onInt(id, remaining.join("/")), "hit");
           if (method === "GET" && remaining.length === 0) {
-            log(`get() terminal → json({ id: ${id}, name: John })`, "hit");
+            log(i18n.getShow(id), "hit");
             done = true;
           } else if (method === "DELETE" && remaining.length === 0) {
-            log("delete() → halt(204)", "hit");
+            log(i18n.del, "hit");
             done = true;
           } else {
-            log("branch taken, no leaf → 200 empty", "miss");
+            log(i18n.emptyBranch, "miss");
             done = true;
           }
         } else {
-          log("onInt() miss — branch already taken → 200 empty", "miss");
+          log(i18n.onIntMiss, "miss");
           done = true;
         }
       }
     } else {
-      log("on('users') miss", "miss");
+      log(i18n.onUsersMiss, "miss");
     }
   }
 
-  if (!done) log("App::handle() → 404 Not Found", "miss");
+  if (!done) log(i18n.notFound, "miss");
   return lines;
 }
 
