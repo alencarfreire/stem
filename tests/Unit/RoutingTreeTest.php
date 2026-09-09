@@ -1,0 +1,299 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Stem\Tests\Unit;
+
+use PHPUnit\Framework\TestCase;
+use Stem\App;
+use Stem\Request;
+use Stem\Response;
+
+final class RoutingTreeTest extends TestCase
+{
+    public function testRootMatchesOnlyTheSlash(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->root(fn () => $r->json(['root' => true]));
+        });
+
+        $ok = $this->handle($app, 'GET', '/');
+        self::assertSame(200, $ok->status());
+        self::assertSame('{"root":true}', $ok->body());
+
+        $miss = $this->handle($app, 'GET', '/users');
+        self::assertSame(404, $miss->status());
+    }
+
+    public function testOnMatchesPrefixAndIsRequiresExactRemaining(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->on('users', function () use ($r): void {
+                $r->json(['branch' => true, 'remaining' => $r->remaining()]);
+            });
+        });
+
+        $list = $this->handle($app, 'GET', '/users');
+        self::assertSame(200, $list->status());
+        self::assertSame('{"branch":true,"remaining":""}', $list->body());
+
+        $nested = $this->handle($app, 'GET', '/users/1');
+        self::assertSame('{"branch":true,"remaining":"/1"}', $nested->body());
+
+        $miss = $this->handle($app, 'GET', '/posts');
+        self::assertSame(404, $miss->status());
+
+        $exact = $this->app(function (Request $r): void {
+            $r->is('users', fn () => $r->json(['exact' => true]));
+        });
+
+        self::assertSame(200, $this->handle($exact, 'GET', '/users')->status());
+        self::assertSame(404, $this->handle($exact, 'GET', '/users/1')->status());
+    }
+
+    public function testGetIsTerminalForMethodAndRemainingPath(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->on('users', function () use ($r): void {
+                $r->get(fn () => $r->json(['verb' => 'GET']));
+                $r->post(fn () => $r->json(['verb' => 'POST'], 201));
+            });
+        });
+
+        $get = $this->handle($app, 'GET', '/users');
+        self::assertSame(200, $get->status());
+        self::assertSame('{"verb":"GET"}', $get->body());
+
+        $post = $this->handle($app, 'POST', '/users');
+        self::assertSame(201, $post->status());
+        self::assertSame('{"verb":"POST"}', $post->body());
+
+        self::assertSame(200, $this->handle($app, 'GET', '/users/1')->status());
+        self::assertSame('', $this->handle($app, 'GET', '/users/1')->body());
+        self::assertSame(200, $this->handle($app, 'PUT', '/users')->status());
+        self::assertSame('', $this->handle($app, 'PUT', '/users')->body());
+    }
+
+    public function testAllVerbsRespectTheHttpMethod(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->is(function () use ($r): void {
+                $r->put(fn () => $r->json(['verb' => 'PUT']));
+                $r->patch(fn () => $r->json(['verb' => 'PATCH']));
+                $r->delete(fn () => $r->halt(204));
+            });
+        });
+
+        self::assertSame('{"verb":"PUT"}', $this->handle($app, 'PUT', '/')->body());
+        self::assertSame('{"verb":"PATCH"}', $this->handle($app, 'PATCH', '/')->body());
+        self::assertSame(204, $this->handle($app, 'DELETE', '/')->status());
+        self::assertSame(200, $this->handle($app, 'GET', '/')->status());
+        self::assertSame('', $this->handle($app, 'GET', '/')->body());
+    }
+
+    public function testGetWithSegmentIsExact(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->get('about', fn () => $r->html('<h1>About</h1>'));
+        });
+
+        $ok = $this->handle($app, 'GET', '/about');
+        self::assertSame(200, $ok->status());
+        self::assertSame('<h1>About</h1>', $ok->body());
+        self::assertSame(Response::CONTENT_TYPE_HTML, $ok->headers()['Content-Type']);
+        self::assertSame(404, $this->handle($app, 'GET', '/about/team')->status());
+        self::assertSame(404, $this->handle($app, 'POST', '/about')->status());
+    }
+
+    public function testOnIntCapturesIntegersAndRejectsInvalidSegments(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->on('users', function () use ($r): void {
+                $r->onInt(function (int $id) use ($r): void {
+                    $r->get(fn () => $r->json(['id' => $id]));
+                });
+            });
+        });
+
+        self::assertSame('{"id":42}', $this->handle($app, 'GET', '/users/42')->body());
+        self::assertSame('{"id":0}', $this->handle($app, 'GET', '/users/0')->body());
+
+        // on('users') already took the branch — unmatched inner matchers are empty 200, not 404.
+        foreach (['/users/abc', '/users/01', '/users/-1', '/users/1.5', '/users/9223372036854775808'] as $path) {
+            $miss = $this->handle($app, 'GET', $path);
+            self::assertSame(200, $miss->status(), $path);
+            self::assertSame('', $miss->body(), $path);
+        }
+
+        $top = $this->app(function (Request $r): void {
+            $r->onInt(function (int $id) use ($r): void {
+                $r->json(['id' => $id]);
+            });
+        });
+        self::assertSame(404, $this->handle($top, 'GET', '/abc')->status());
+        self::assertSame('{"id":7}', $this->handle($top, 'GET', '/7')->body());
+    }
+
+    public function testOnParamCapturesTheNextSegment(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->on('users', function () use ($r): void {
+                $r->onParam(function (string $name) use ($r): void {
+                    $r->get(fn () => $r->json(['name' => $name]));
+                });
+            });
+        });
+
+        self::assertSame('{"name":"john-doe"}', $this->handle($app, 'GET', '/users/john-doe')->body());
+    }
+
+    public function testNestedUsersIdGet(): void
+    {
+        $app = $this->canonical();
+
+        $response = $this->handle($app, 'GET', '/users/7');
+        self::assertSame(200, $response->status());
+        self::assertSame('{"id":7,"name":"John"}', $response->body());
+        self::assertSame(Response::CONTENT_TYPE_JSON, $response->headers()['Content-Type']);
+    }
+
+    public function testHaltSetsStatusAndBody(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->on('secret', function () use ($r): void {
+                $r->halt(403, 'no', ['X-Denied' => '1']);
+            });
+        });
+
+        $response = $this->handle($app, 'GET', '/secret');
+        self::assertSame(403, $response->status());
+        self::assertSame('no', $response->body());
+        self::assertSame('1', $response->headers()['X-Denied']);
+    }
+
+    public function testHaltInTheMiddleOfACallbackSkipsLaterMatchers(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->onInt(function (int $id) use ($r): void {
+                if ($id < 1) {
+                    $r->halt(404, 'missing');
+                }
+
+                $r->get(fn () => $r->json(['id' => $id]));
+            });
+        });
+
+        $denied = $this->handle($app, 'GET', '/0');
+        self::assertSame(404, $denied->status());
+        self::assertSame('missing', $denied->body());
+
+        $ok = $this->handle($app, 'GET', '/2');
+        self::assertSame('{"id":2}', $ok->body());
+    }
+
+    public function testTotalMissIs404(): void
+    {
+        $app = $this->canonical();
+        $response = $this->handle($app, 'GET', '/nope');
+        self::assertSame(404, $response->status());
+        self::assertSame('Not Found', $response->body());
+    }
+
+    public function testMatchedSiblingIsNotExecuted(): void
+    {
+        $hits = [];
+        $app = $this->app(function (Request $r) use (&$hits): void {
+            $r->on('users', function () use ($r, &$hits): void {
+                $hits[] = 'users';
+                $r->json(['ok' => 'users']);
+            });
+            $r->on('users', function () use (&$hits): void {
+                $hits[] = 'duplicate';
+            });
+            $r->on('posts', function () use ($r, &$hits): void {
+                $hits[] = 'posts';
+                $r->json(['ok' => 'posts']);
+            });
+        });
+
+        $response = $this->handle($app, 'GET', '/users');
+        self::assertSame('{"ok":"users"}', $response->body());
+        self::assertSame(['users'], $hits);
+    }
+
+    public function testJsonOnTheHappyPathDoesNotRequireHalt(): void
+    {
+        $app = $this->canonical();
+        $response = $this->handle($app, 'GET', '/');
+        self::assertSame(200, $response->status());
+        self::assertSame('{"message":"StemPHP API"}', $response->body());
+    }
+
+    public function testRemainingPathAfterOn(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->on('api', function () use ($r): void {
+                $r->json(['remaining' => $r->remaining()]);
+            });
+        });
+
+        self::assertSame('{"remaining":"/v1"}', $this->handle($app, 'GET', '/api/v1')->body());
+    }
+
+    public function testTrailingSlashEqualsCanonicalPath(): void
+    {
+        $app = $this->canonical();
+        self::assertSame(
+            $this->handle($app, 'GET', '/users')->body(),
+            $this->handle($app, 'GET', '/users/')->body(),
+        );
+    }
+
+    public function testQueryStringDoesNotAffectMatching(): void
+    {
+        $app = $this->canonical();
+        $response = $this->handle($app, 'GET', '/users?x=1', [], ['x' => '1']);
+        self::assertSame(200, $response->status());
+        self::assertSame('[{"id":1,"name":"John"}]', $response->body());
+    }
+
+    /**
+     * @param \Closure(Request): void $route
+     */
+    private function app(\Closure $route): App
+    {
+        return (new App())->route($route);
+    }
+
+    private function canonical(): App
+    {
+        return $this->app(function (Request $r): void {
+            $r->root(fn () => $r->json(['message' => 'StemPHP API']));
+
+            $r->on('users', function () use ($r): void {
+                $r->get(fn () => $r->json([['id' => 1, 'name' => 'John']]));
+                $r->post(fn () => $r->json(['id' => 2], 201));
+
+                $r->onInt(function (int $id) use ($r): void {
+                    $r->get(fn () => $r->json(['id' => $id, 'name' => 'John']));
+                    $r->delete(fn () => $r->halt(204));
+                });
+            });
+        });
+    }
+
+    /**
+     * @param array<string, string> $headers
+     * @param array<string, mixed> $query
+     */
+    private function handle(
+        App $app,
+        string $method,
+        string $path,
+        array $headers = [],
+        array $query = [],
+        string $body = '',
+    ): Response {
+        return $app->handle(Request::create($method, $path, $headers, $query, $body));
+    }
+}

@@ -1,0 +1,10 @@
+{
+	frankenphp
+}
+
+:80 {
+	root * /app/examples/frankenphp
+	php_server {
+		worker /app/examples/frankenphp/worker.php
+	}
+}

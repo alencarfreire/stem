@@ -1,0 +1,64 @@
+{
+    "name": "alencarfreire/stem",
+    "description": "Ultralight executable routing-tree micro-framework for PHP 8.3+. Runs on FPM, FrankenPHP, RoadRunner and Swoole.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "router",
+        "micro-framework",
+        "frankenphp",
+        "routing-tree",
+        "roda",
+        "swoole",
+        "roadrunner"
+    ],
+    "authors": [
+        {
+            "name": "Vinicius de Alencar Freire",
+            "email": "alencarfreire@gmail.com"
+        }
+    ],
+    "homepage": "https://github.com/alencarfreire/stem",
+    "support": {
+        "issues": "https://github.com/alencarfreire/stem/issues",
+        "source": "https://github.com/alencarfreire/stem"
+    },
+    "require": {
+        "php": ">=8.3"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.75",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^11.5"
+    },
+    "suggest": {
+        "ext-frankenphp": "Optional: FrankenPHP worker mode (in-memory request loop)",
+        "ext-swoole": "Optional: Swoole HTTP server using App::handle()",
+        "spiral/roadrunner-http": "Optional: RoadRunner HTTP worker using App::handle()"
+    },
+    "autoload": {
+        "psr-4": {
+            "Stem\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Stem\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "analyze": "phpstan analyse --memory-limit=512M",
+        "format": "php-cs-fixer fix --allow-risky=yes",
+        "test": "phpunit"
+    },
+    "config": {
+        "audit": {
+            "abandoned": "report"
+        },
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
