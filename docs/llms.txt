@@ -1,6 +1,6 @@
 # StemPHP
 
-> Ultralight executable routing-tree micro-framework for PHP 8.3+. Packagist: alencarfreire/stem. Namespace: Stem\. Zero runtime dependencies. Current: v0.1.0.
+> Ultralight executable routing-tree micro-framework for PHP 8.3+. Packagist: alencarfreire/stem. Namespace: Stem\. Zero runtime dependencies. Current: v0.2.0.
 
 Human docs: https://alencarfreire.github.io/stem/ (EN) · https://alencarfreire.github.io/stem/pt/ (pt-BR)
 Source: https://github.com/alencarfreire/stem

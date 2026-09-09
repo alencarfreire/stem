@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 0.2.0 — 2026-09-09
+
+
 ### Added
 - `405 Method Not Allowed` with `Allow` when a leaf path was visited with the wrong verb
 - Automatic `OPTIONS` → `204` + `Allow` when verbs were collected

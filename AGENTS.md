@@ -2,7 +2,7 @@
 
 This file is the source of truth for **changing this repository**. Human docs: `docs/index.html` (EN), `docs/pt/index.html` (pt-BR). Consumer-facing machine spec: `docs/llms.txt`.
 
-Package: `alencarfreire/stem` · namespace `Stem\` · type `library` · PHP `>=8.3` · MIT · current tag `v0.1.0` (0.x: public API still treated as stable unless the user asks for a break).
+Package: `alencarfreire/stem` · namespace `Stem\` · type `library` · PHP `>=8.3` · MIT · current tag `v0.2.0` (0.x: public API still treated as stable unless the user asks for a break).
 
 After any behavioral change: `composer test` and `composer analyze` must pass. If you change routing semantics, examples, or public signatures, update **both** EN and pt-BR docs **and** `docs/llms.txt`.
 
