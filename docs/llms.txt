@@ -1,6 +1,6 @@
 # StemPHP
 
-> Ultralight executable routing-tree micro-framework for PHP 8.3+. Packagist: alencarfreire/stem. Namespace: Stem\. Zero runtime dependencies. Current: v0.2.0.
+> Ultralight executable routing-tree micro-framework for PHP 8.3+. Packagist: alencarfreire/stem. Namespace: Stem\. Zero runtime dependencies. Current: v0.3.0.
 
 Human docs: https://alencarfreire.github.io/stem/ (EN) · https://alencarfreire.github.io/stem/pt/ (pt-BR)
 Source: https://github.com/alencarfreire/stem
@@ -11,7 +11,7 @@ This file is for AI agents **using or extending** StemPHP. Prefer it over scrapi
 ## Install
 
 ```bash
-composer require alencarfreire/stem:^0.2
+composer require alencarfreire/stem:^0.3
 ```
 
 PHP >= 8.3. Optional: ext-frankenphp, ext-swoole, spiral/roadrunner-http (examples only).
