@@ -141,9 +141,9 @@ $app-&gt;run();</code></pre>
           <div class="row"><span class="dim">get()</span> <span class="seg">terminal leaf</span> <span class="dim">→ json</span></div>
         </div>
         <ul>
-          <li>A matcher that hits runs its callback, then sets <code>$done</code>. Siblings at that level do not run.</li>
+          <li>A matcher that hits runs its callback, then seals that level. Siblings do not run.</li>
           <li>If nothing in the whole tree hits, <code>handle()</code> returns <strong>404</strong>.</li>
-          <li>If a branch hits (<code>on</code>/<code>onInt</code>) but no leaf writes a body, you get <strong>200 empty</strong> — the branch already consumed the path. There is no backtracking.</li>
+          <li>If a branch hits but no leaf writes a body: leftover path → <strong>404</strong>; wrong method → <strong>405</strong> with <code>Allow</code>. There is no backtracking.</li>
         </ul>
       </section>
 
@@ -165,6 +165,10 @@ $app-&gt;run();</code></pre>
             <tr><td><code>$r-&gt;json($data, $status = 200)</code></td><td>JSON body + content type. Sets <code>$done</code>. Does not throw.</td></tr>
             <tr><td><code>$r-&gt;html($html, $status = 200)</code></td><td>HTML body. Sets <code>$done</code>. Does not throw.</td></tr>
             <tr><td><code>$r-&gt;halt($status, $body, $headers)</code></td><td>Early exit (<code>never</code>). Throws internal <code>HaltException</code>.</td></tr>
+            <tr><td><code>$r-&gt;redirect($url, $status = 302)</code></td><td><code>Location</code> + status.</td></tr>
+            <tr><td><code>$r-&gt;noContent()</code></td><td>HTTP 204.</td></tr>
+            <tr><td><code>$r-&gt;cookie($name, $value, $options = [])</code></td><td><code>Set-Cookie</code> (no CR/LF).</td></tr>
+            <tr><td><code>$r-&gt;options($cb)</code></td><td>Same as other verbs. Bare <code>OPTIONS</code> also gets automatic <code>204</code> + <code>Allow</code> when verbs were visited.</td></tr>
           </tbody>
         </table>
         <p class="note"><strong>Deviation from Roda:</strong> <code>get()</code> / <code>post()</code> without a segment are terminal (method + empty remaining). Roda’s bare <code>r.get</code> matches GET even with leftover path — easy to swallow <code>/users/1/posts</code>. Put nested <code>on()</code> branches <em>above</em> the leaf <code>get()</code>.</p>
@@ -211,7 +215,10 @@ $app-&gt;run();</code></pre>
             <tr><td><code>Request::create($method, $path, $headers, $query, $body)</code></td><td>Tests, RoadRunner, Swoole.</td></tr>
             <tr><td><code>method()</code> / <code>path()</code> / <code>remaining()</code></td><td>Verb, normalized path, unconsumed suffix.</td></tr>
             <tr><td><code>header($name)</code> / <code>headers()</code></td><td>Lazy: <code>$_SERVER</code> is scanned only on first access.</td></tr>
-            <tr><td><code>query()</code> / <code>rawBody()</code></td><td>Query string and raw body. GET/HEAD skip <code>php://input</code>.</td></tr>
+            <tr><td><code>query()</code> / <code>queryParam($key, $default)</code></td><td>Full query array, or one key.</td></tr>
+            <tr><td><code>form()</code> / <code>formParam($key, $default)</code></td><td><code>$_POST</code> fields from <code>fromGlobals()</code>.</td></tr>
+            <tr><td><code>rawBody()</code> / <code>jsonBody()</code></td><td>Raw body. JSON decode; invalid JSON → <code>halt(400)</code>. GET/HEAD skip <code>php://input</code>.</td></tr>
+            <tr><td><code>bearerToken()</code> / <code>wantsJson()</code></td><td><code>Authorization: Bearer</code> and <code>Accept</code>.</td></tr>
             <tr><td><code>response()</code></td><td>Allocates <code>Response</code> on first write.</td></tr>
           </tbody>
         </table>
@@ -220,7 +227,7 @@ $app-&gt;run();</code></pre>
 
       <section id="response">
         <h2>Response</h2>
-        <p>Mutable and request-scoped. <code>json()</code> / <code>html()</code> on <code>Request</code> write here and set <code>$done</code>.</p>
+        <p>Mutable and request-scoped. <code>json()</code> / <code>html()</code> / <code>redirect()</code> / <code>noContent()</code> write here. <code>HEAD</code> matches <code>get()</code>; <code>send()</code> omits the body.</p>
         <table>
           <thead>
             <tr><th>Method</th><th>Role</th></tr>
@@ -244,7 +251,8 @@ $app-&gt;run();                          // fromGlobals + handle + send</code></
         </div>
         <ul>
           <li><code>route()</code> may be called once. A second call throws <code>LogicException</code>.</li>
-          <li><code>handle()</code> catches only <code>HaltException</code>. Other throwables bubble to the SAPI.</li>
+          <li><code>notFound(fn (Request $r) =&gt; ...)</code> and <code>error(fn (Throwable $e, Request $r) =&gt; ...)</code> are optional.</li>
+          <li><code>handle()</code> catches <code>HaltException</code>. Other throwables go to <code>error()</code> if set, otherwise bubble.</li>
           <li>Happy path (<code>json</code>/<code>html</code>) does not throw.</li>
         </ul>
       </section>

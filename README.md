@@ -42,7 +42,7 @@ php -S localhost:8080 index.php
 
 ## Routing tree
 
-The route closure **runs on every request**. Matchers consume the remaining path. A match finishes that level (`$done`); siblings do not run. If nothing matches, `handle()` returns 404.
+The route closure **runs on every request**. Matchers consume the remaining path. A match finishes that level; siblings do not run. Total miss → 404. Branch taken, leftover path → 404. Wrong method → 405 + `Allow`.
 
 | Call | Meaning |
 |---|---|
@@ -57,6 +57,9 @@ The route closure **runs on every request**. Matchers consume the remaining path
 | `$r->json($data, $status = 200)` | JSON body + `Content-Type`. Sets `$done`. Does not throw. |
 | `$r->html($html, $status = 200)` | HTML body. Sets `$done`. Does not throw. |
 | `$r->halt($status, $body, $headers)` | Early exit (`never`). Throws an internal `HaltException`. |
+| `$r->redirect($url, $status = 302)` | `Location`. |
+| `$r->noContent()` | HTTP 204. |
+| `$r->jsonBody()` / `queryParam` / `formParam` / `bearerToken` | Request helpers. Invalid JSON → `halt(400)`. |
 
 Matchers do **not** inject `Request` as an argument (no Reflection on the hot path). Use `use ($r)` or arrow functions, which already capture `$r` from the `route()` closure. Captures (`onInt` / `onParam`) are the only extra arguments.
 

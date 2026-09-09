@@ -14,6 +14,9 @@ final class Response
 
     private bool $sent = false;
 
+    /** @var list<string> */
+    private array $cookieHeaders = [];
+
     /**
      * @param array<string, string> $headers
      */
@@ -54,6 +57,14 @@ final class Response
         return $this->sent;
     }
 
+    /**
+     * @return list<string>
+     */
+    public function cookies(): array
+    {
+        return $this->cookieHeaders;
+    }
+
     public function withStatus(int $status): self
     {
         $this->assertStatus($status);
@@ -90,6 +101,57 @@ final class Response
         return $this;
     }
 
+    /**
+     * @param array{expires?:int, maxage?:int, path?:string, domain?:string, secure?:bool, httponly?:bool, samesite?:string} $options
+     */
+    public function withCookie(string $name, string $value, array $options = []): self
+    {
+        if ($name === '' || strpbrk($name, "=\r\n") !== false || strpbrk($value, "\r\n") !== false) {
+            throw new \InvalidArgumentException('Invalid cookie.');
+        }
+
+        $parts = [rawurlencode($name) . '=' . rawurlencode($value)];
+
+        if (isset($options['expires'])) {
+            $parts[] = 'Expires=' . gmdate('D, d M Y H:i:s', $options['expires']) . ' GMT';
+        }
+
+        if (isset($options['maxage'])) {
+            $parts[] = 'Max-Age=' . $options['maxage'];
+        }
+
+        if (isset($options['path'])) {
+            $this->assertHeader('Path', $options['path']);
+            $parts[] = 'Path=' . $options['path'];
+        }
+
+        if (isset($options['domain'])) {
+            $this->assertHeader('Domain', $options['domain']);
+            $parts[] = 'Domain=' . $options['domain'];
+        }
+
+        if (($options['secure'] ?? false) === true) {
+            $parts[] = 'Secure';
+        }
+
+        if (($options['httponly'] ?? false) === true) {
+            $parts[] = 'HttpOnly';
+        }
+
+        if (isset($options['samesite'])) {
+            $sameSite = $options['samesite'];
+            if ($sameSite !== 'Lax' && $sameSite !== 'Strict' && $sameSite !== 'None') {
+                throw new \InvalidArgumentException('SameSite must be Lax, Strict, or None.');
+            }
+
+            $parts[] = 'SameSite=' . $sameSite;
+        }
+
+        $this->cookieHeaders[] = implode('; ', $parts);
+
+        return $this;
+    }
+
     public function writeHtml(string $html, int $status = 200): self
     {
         if ($status !== 200) {
@@ -103,7 +165,7 @@ final class Response
         return $this;
     }
 
-    public function send(): void
+    public function send(bool $sendBody = true): void
     {
         if ($this->sent) {
             return;
@@ -116,9 +178,15 @@ final class Response
             foreach ($this->headers as $name => $value) {
                 header($name . ': ' . $value, true);
             }
+
+            foreach ($this->cookieHeaders as $cookie) {
+                header('Set-Cookie: ' . $cookie, false);
+            }
         }
 
-        echo $this->body;
+        if ($sendBody && $this->status !== 204 && $this->status !== 304) {
+            echo $this->body;
+        }
     }
 
     private function assertStatus(int $status): void

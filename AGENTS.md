@@ -23,8 +23,8 @@ Request::create/fromGlobals → App::handle → route closure → matchers → R
 3. **No Reflection / `is_callable` / `ArgumentCountError` arity sniffing** on the matching hot path.
 4. **Matchers do not inject `Request`.** Callbacks are `function () use ($r)` or arrows. Only `onInt(int)` / `onParam(string)` pass captures.
 5. **Happy path does not throw.** `json()` / `html()` set `$done` and return. Only `halt()` throws `HaltException`.
-6. **No backtracking.** Once `on`/`onInt`/`onParam` consumes, siblings at that level must not see the original path. Unhandled leftover inside a taken branch → **200 empty**, not 404.
-7. **Total miss → 404.** `$done === false` after the route closure.
+6. **No backtracking.** Once `on`/`onInt`/`onParam` consumes, siblings at that level must not see the original path. Unhandled leftover inside a taken branch → **404**. Wrong method on a visited leaf path → **405** + `Allow`.
+7. **Total miss → 404.** Nothing written and no allowed methods.
 8. **PHP 8.3 syntax only** in `src/` (no property hooks / 8.4-only). `declare(strict_types=1);` every PHP file. Classes `final`. No `__call` / `__get`.
 9. **PHPStan level 9 + strict-rules** on `src` and `tests`. Do not weaken the config to land a change.
 10. **Do not add PSR-7/PSR-15 to core.** `handle(Request): Response` is the runtime contract. Adapters live in `examples/`.
@@ -56,16 +56,16 @@ Do not invent new public classes without a product reason. Prefer extending `Req
 
 | Call | Match rule | After match |
 |---|---|---|
-| `on($seg, $cb)` | prefix consume | `$cb()` then `$done=true` |
+| `on($seg, $cb)` | prefix consume | `$cb()` then seal (siblings skip) |
 | `is($seg, $cb)` | exact remaining `$seg` | same |
 | `is($cb)` | `atEnd()` | same |
 | `root($cb)` | `atEnd()`, any method | same |
-| `get/post/put/delete/patch($cb)` | method **and** `atEnd()` (terminal; **not** Roda’s bare `r.get`) | same |
+| `get/post/put/delete/patch/options($cb)` | method **and** `atEnd()` (terminal; **not** Roda’s bare `r.get`). `HEAD` matches `get()`. | write if callback runs |
 | `get($seg, $cb)` | method + `consumeExact($seg)` | same |
-| `onInt($cb)` | `ctype_digit`, no leading zeros except `"0"`, `(int)` round-trip (overflow reject) | `$cb($id)` then `$done=true` |
-| `onParam($cb)` | next non-empty segment | `$cb($seg)` then `$done=true` |
-| `json` / `html` | write response | `$done=true`, **no throw** |
-| `halt` | write response | `$done=true`, **throw HaltException** |
+| `onInt($cb)` | `ctype_digit`, no leading zeros except `"0"`, `(int)` round-trip (overflow reject) | `$cb($id)` then seal |
+| `onParam($cb)` | next non-empty segment | `$cb($seg)` then seal |
+| `json` / `html` / `redirect` / `noContent` | write response | written, **no throw** |
+| `halt` | write response | written, **throw HaltException** |
 
 Every matcher starts with `if ($this->done) return;` **before** consuming. Consuming before the `$done` check is a bug (it advances the cursor after the request is finished).
 

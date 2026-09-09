@@ -46,7 +46,10 @@ $app->run(); // FPM / php -S
 The route closure **executes every request** (Roda). Matchers consume remaining path segments. A hit sets `$done`; sibling matchers no-op. No route compilation.
 
 - Total miss → HTTP 404 `Not Found`
-- Branch (`on`/`onInt`/`onParam`) taken but no leaf write → HTTP 200 empty (no backtracking)
+- Branch taken, leftover path / no leaf → HTTP 404
+- Branch taken, wrong method → HTTP 405 + `Allow`
+- `OPTIONS` with visited verbs and no `options()` leaf → HTTP 204 + `Allow`
+- `HEAD` matches `get()`; `send()` omits body
 - `get()`/`post()`/`put()`/`delete()`/`patch()` without a segment are **terminal** (method AND remaining empty). This differs from Roda `r.get`.
 
 ## Callbacks
@@ -71,6 +74,10 @@ Right: `$r->on('users', function () use ($r) { ... })`
 | `$r->json($data, $status=200)` | write JSON, set done, no throw |
 | `$r->html($html, $status=200)` | write HTML, set done, no throw |
 | `$r->halt($status, $body='', $headers=[])` | write + throw HaltException (`never`) |
+| `$r->redirect($url, $status=302)` | Location |
+| `$r->noContent()` | 204 |
+| `$r->cookie($name, $value, $opts=[])` | Set-Cookie |
+| `$r->options($cb)` | OPTIONS leaf; automatic Allow if omitted |
 
 Path: trailing slash stripped except `/`; `//` collapsed; `?`/`#` dropped; decode per segment.
 
@@ -78,33 +85,44 @@ Path: trailing slash stripped except `/`; `//` collapsed; `?`/`#` dropped; decod
 
 ```php
 $app->route(Closure): self     // once; second call LogicException
+$app->notFound(fn (Request): void): self
+$app->error(fn (Throwable, Request): void): self
 $app->handle(Request): Response
-$app->run(): void              // fromGlobals + handle + send
+$app->run(): void              // fromGlobals + handle + send (HEAD omits body)
 ```
 
-`handle()` catches only `Stem\Exceptions\HaltException`. Other throwables propagate.
+`handle()` catches `HaltException`. Other throwables go to `error()` if set.
 
 ## Request / Response (public)
 
 ```
 Request::fromGlobals(): self          // inside worker loop, never at boot
-Request::create(string $method, string $path, array $headers=[], array $query=[], string $body=''): self
+Request::create(string $method, string $path, array $headers=[], array $query=[], string $body='', array $post=[]): self
 method(): string
 path(): string                        // normalized, offset 0
 remaining(): string                   // unconsumed
 header(string $name): ?string         // lazy $_SERVER
 headers(): array
 query(): array
+queryParam(string $key, mixed $default=null): mixed
+form(): array                         // $_POST
+formParam(string $key, mixed $default=null): mixed
 rawBody(): string                     // GET/HEAD skipped
+jsonBody(): mixed                     // halt(400) if invalid
+bearerToken(): ?string
+wantsJson(): bool
 response(): Response                  // lazy
 isDone(): bool
+isWritten(): bool
+allowed(): list<string>
 
 Response::status(): int
 headers(): array
 body(): string
-withStatus / withHeader / withBody    // mutable fluent; CR/LF rejected
+cookies(): list<string>
+withStatus / withHeader / withBody / withCookie
 writeJson / writeHtml
-send(): void                          // idempotent
+send(bool $sendBody=true): void       // idempotent; 204/304 omit body
 ```
 
 ## Isolation (workers)

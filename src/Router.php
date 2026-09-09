@@ -140,9 +140,14 @@ final class Router
         return true;
     }
 
+    public function isExact(string $segment): bool
+    {
+        return $this->offset === $this->count - 1 && $this->segments[$this->offset] === $segment;
+    }
+
     public function consumeExact(string $segment): bool
     {
-        if ($this->offset !== $this->count - 1 || $this->segments[$this->offset] !== $segment) {
+        if (!$this->isExact($segment)) {
             return false;
         }
 

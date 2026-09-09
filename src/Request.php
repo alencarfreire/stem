@@ -8,11 +8,17 @@ use Stem\Exceptions\HaltException;
 
 final class Request
 {
-    private bool $done = false;
+    private bool $written = false;
+
+    private bool $sealed = false;
+
+    /** @var list<string> */
+    private array $allowed = [];
 
     /**
      * @param array<string, string> $headers
      * @param array<string, mixed> $query
+     * @param array<string, mixed> $post
      */
     public function __construct(
         private readonly string $method,
@@ -23,6 +29,7 @@ final class Request
         private readonly array $query = [],
         private readonly string $rawBody = '',
         private bool $lazyHeaders = false,
+        private readonly array $post = [],
     ) {
     }
 
@@ -63,6 +70,8 @@ final class Request
 
         /** @var array<string, mixed> $query */
         $query = $_GET;
+        /** @var array<string, mixed> $post */
+        $post = $_POST;
 
         $router = Router::fromPath($uri);
 
@@ -75,12 +84,14 @@ final class Request
             $query,
             $body,
             true,
+            $post,
         );
     }
 
     /**
      * @param array<string, string> $headers
      * @param array<string, mixed> $query
+     * @param array<string, mixed> $post
      */
     public static function create(
         string $method,
@@ -88,6 +99,7 @@ final class Request
         array $headers = [],
         array $query = [],
         string $body = '',
+        array $post = [],
     ): self {
         if ($method !== 'GET' && $method !== 'POST' && $method !== 'HEAD' && $method !== 'PUT' && $method !== 'PATCH' && $method !== 'DELETE' && $method !== 'OPTIONS') {
             $method = strtoupper($method);
@@ -111,6 +123,8 @@ final class Request
             $headers,
             $query,
             $body,
+            false,
+            $post,
         );
     }
 
@@ -131,7 +145,20 @@ final class Request
 
     public function isDone(): bool
     {
-        return $this->done;
+        return $this->written || $this->sealed;
+    }
+
+    public function isWritten(): bool
+    {
+        return $this->written;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function allowed(): array
+    {
+        return $this->allowed;
     }
 
     public function header(string $name): ?string
@@ -162,9 +189,59 @@ final class Request
         return $this->query;
     }
 
+    public function queryParam(string $key, mixed $default = null): mixed
+    {
+        return $this->query[$key] ?? $default;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function form(): array
+    {
+        return $this->post;
+    }
+
+    public function formParam(string $key, mixed $default = null): mixed
+    {
+        return $this->post[$key] ?? $default;
+    }
+
     public function rawBody(): string
     {
         return $this->rawBody;
+    }
+
+    public function jsonBody(): mixed
+    {
+        if ($this->rawBody === '') {
+            return null;
+        }
+
+        try {
+            return json_decode($this->rawBody, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            $this->halt(400, 'Invalid JSON', ['Content-Type' => 'text/plain; charset=utf-8']);
+        }
+    }
+
+    public function bearerToken(): ?string
+    {
+        $header = $this->header('authorization');
+        if ($header === null || !str_starts_with($header, 'Bearer ')) {
+            return null;
+        }
+
+        $token = substr($header, 7);
+
+        return $token === '' ? null : $token;
+    }
+
+    public function wantsJson(): bool
+    {
+        $accept = $this->header('accept') ?? '';
+
+        return str_contains($accept, 'application/json') || str_contains($accept, '+json');
     }
 
     public function response(): Response
@@ -177,12 +254,12 @@ final class Request
      */
     public function on(string $segment, callable $callback): void
     {
-        if ($this->done || !$this->router->consume($segment)) {
+        if ($this->isDone() || !$this->router->consume($segment)) {
             return;
         }
 
         $callback();
-        $this->done = true;
+        $this->seal();
     }
 
     /**
@@ -191,7 +268,7 @@ final class Request
      */
     public function is(string|callable $exactOrCallback, ?callable $callback = null): void
     {
-        if ($this->done) {
+        if ($this->isDone()) {
             return;
         }
 
@@ -205,7 +282,7 @@ final class Request
             }
 
             $exactOrCallback();
-            $this->done = true;
+            $this->seal();
 
             return;
         }
@@ -219,7 +296,7 @@ final class Request
         }
 
         $callback();
-        $this->done = true;
+        $this->seal();
     }
 
     /**
@@ -227,12 +304,12 @@ final class Request
      */
     public function root(callable $callback): void
     {
-        if ($this->done || !$this->router->atEnd()) {
+        if ($this->isDone() || !$this->router->atEnd()) {
             return;
         }
 
         $callback();
-        $this->done = true;
+        $this->seal();
     }
 
     /**
@@ -240,7 +317,7 @@ final class Request
      */
     public function onParam(callable $callback): void
     {
-        if ($this->done) {
+        if ($this->isDone()) {
             return;
         }
 
@@ -250,7 +327,7 @@ final class Request
         }
 
         $callback($param);
-        $this->done = true;
+        $this->seal();
     }
 
     /**
@@ -258,7 +335,7 @@ final class Request
      */
     public function onInt(callable $callback): void
     {
-        if ($this->done) {
+        if ($this->isDone()) {
             return;
         }
 
@@ -268,7 +345,7 @@ final class Request
         }
 
         $callback($id);
-        $this->done = true;
+        $this->seal();
     }
 
     /**
@@ -317,6 +394,15 @@ final class Request
     }
 
     /**
+     * @param string|callable(): void $segmentOrCallback
+     * @param (callable(): void)|null $callback
+     */
+    public function options(string|callable $segmentOrCallback, ?callable $callback = null): void
+    {
+        $this->verb('OPTIONS', $segmentOrCallback, $callback);
+    }
+
+    /**
      * @param array<string, string> $headers
      */
     public function halt(int $status, string $body = '', array $headers = []): never
@@ -327,29 +413,60 @@ final class Request
             $response->withHeader($name, $value);
         }
 
-        $this->done = true;
+        $this->written = true;
 
         throw new HaltException($response);
     }
 
     public function json(mixed $data, int $status = 200): void
     {
-        if ($this->done) {
+        if ($this->written) {
             return;
         }
 
         $this->response()->writeJson($data, $status);
-        $this->done = true;
+        $this->written = true;
     }
 
     public function html(string $html, int $status = 200): void
     {
-        if ($this->done) {
+        if ($this->written) {
             return;
         }
 
         $this->response()->writeHtml($html, $status);
-        $this->done = true;
+        $this->written = true;
+    }
+
+    public function redirect(string $url, int $status = 302): void
+    {
+        if ($this->written) {
+            return;
+        }
+
+        $this->response()
+            ->withStatus($status)
+            ->withHeader('Location', $url)
+            ->withBody('');
+        $this->written = true;
+    }
+
+    public function noContent(): void
+    {
+        if ($this->written) {
+            return;
+        }
+
+        $this->response()->withStatus(204)->withBody('');
+        $this->written = true;
+    }
+
+    /**
+     * @param array{expires?:int, path?:string, domain?:string, secure?:bool, httponly?:bool, samesite?:string, maxage?:int} $options
+     */
+    public function cookie(string $name, string $value, array $options = []): void
+    {
+        $this->response()->withCookie($name, $value, $options);
     }
 
     /**
@@ -358,35 +475,71 @@ final class Request
      */
     private function verb(string $want, string|callable $segmentOrCallback, ?callable $callback): void
     {
-        if ($this->done || $this->method !== $want) {
+        if ($this->isDone()) {
             return;
         }
+
+        $pathOk = false;
+        $segment = null;
 
         if ($callback === null) {
             if (is_string($segmentOrCallback)) {
                 throw new \InvalidArgumentException($want . '() requires a callback.');
             }
 
-            if (!$this->router->atEnd()) {
-                return;
+            $pathOk = $this->router->atEnd();
+        } else {
+            if (!is_string($segmentOrCallback)) {
+                throw new \InvalidArgumentException($want . '() segment must be a string.');
             }
 
+            $segment = $segmentOrCallback;
+            $pathOk = $this->router->isExact($segment);
+        }
+
+        if ($pathOk) {
+            $this->allow($want);
+            if ($want === 'GET') {
+                $this->allow('HEAD');
+            }
+        }
+
+        if (!$pathOk || !$this->methodMatches($want)) {
+            return;
+        }
+
+        if ($segment !== null && !$this->router->consumeExact($segment)) {
+            return;
+        }
+
+        if ($callback === null) {
             $segmentOrCallback();
-            $this->done = true;
-
-            return;
+        } else {
+            $callback();
         }
 
-        if (!is_string($segmentOrCallback)) {
-            throw new \InvalidArgumentException($want . '() segment must be a string.');
+        $this->written = true;
+    }
+
+    private function methodMatches(string $want): bool
+    {
+        if ($this->method === $want) {
+            return true;
         }
 
-        if (!$this->router->consumeExact($segmentOrCallback)) {
-            return;
-        }
+        return $want === 'GET' && $this->method === 'HEAD';
+    }
 
-        $callback();
-        $this->done = true;
+    private function allow(string $method): void
+    {
+        if (!in_array($method, $this->allowed, true)) {
+            $this->allowed[] = $method;
+        }
+    }
+
+    private function seal(): void
+    {
+        $this->sealed = true;
     }
 
     /**

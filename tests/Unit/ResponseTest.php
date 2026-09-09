@@ -45,6 +45,30 @@ final class ResponseTest extends TestCase
         (new Response())->withHeader('X-Foo', "1\r\nX-Evil: 1");
     }
 
+    public function testWithCookieBuildsSetCookie(): void
+    {
+        $response = (new Response())->withCookie('sid', 'abc', [
+            'path' => '/',
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+
+        self::assertSame(
+            ['sid=abc; Path=/; HttpOnly; SameSite=Lax'],
+            $response->cookies(),
+        );
+    }
+
+    public function testSendOmitsBodyForNoContent(): void
+    {
+        $response = (new Response())->withStatus(204)->withBody('nope');
+        ob_start();
+        $response->send();
+        $output = ob_get_clean();
+
+        self::assertSame('', $output);
+    }
+
     public function testSendIsIdempotentAndWritesTheBody(): void
     {
         $response = (new Response())->withBody('hello');

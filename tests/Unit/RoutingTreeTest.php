@@ -68,10 +68,14 @@ final class RoutingTreeTest extends TestCase
         self::assertSame(201, $post->status());
         self::assertSame('{"verb":"POST"}', $post->body());
 
-        self::assertSame(200, $this->handle($app, 'GET', '/users/1')->status());
-        self::assertSame('', $this->handle($app, 'GET', '/users/1')->body());
-        self::assertSame(200, $this->handle($app, 'PUT', '/users')->status());
-        self::assertSame('', $this->handle($app, 'PUT', '/users')->body());
+        $extra = $this->handle($app, 'GET', '/users/1');
+        self::assertSame(404, $extra->status());
+        self::assertSame('Not Found', $extra->body());
+
+        $put = $this->handle($app, 'PUT', '/users');
+        self::assertSame(405, $put->status());
+        self::assertSame('GET, HEAD, POST', $put->headers()['Allow']);
+        self::assertSame('Method Not Allowed', $put->body());
     }
 
     public function testAllVerbsRespectTheHttpMethod(): void
@@ -87,8 +91,9 @@ final class RoutingTreeTest extends TestCase
         self::assertSame('{"verb":"PUT"}', $this->handle($app, 'PUT', '/')->body());
         self::assertSame('{"verb":"PATCH"}', $this->handle($app, 'PATCH', '/')->body());
         self::assertSame(204, $this->handle($app, 'DELETE', '/')->status());
-        self::assertSame(200, $this->handle($app, 'GET', '/')->status());
-        self::assertSame('', $this->handle($app, 'GET', '/')->body());
+        $get = $this->handle($app, 'GET', '/');
+        self::assertSame(405, $get->status());
+        self::assertSame('DELETE, PATCH, PUT', $get->headers()['Allow']);
     }
 
     public function testGetWithSegmentIsExact(): void
@@ -102,7 +107,9 @@ final class RoutingTreeTest extends TestCase
         self::assertSame('<h1>About</h1>', $ok->body());
         self::assertSame(Response::CONTENT_TYPE_HTML, $ok->headers()['Content-Type']);
         self::assertSame(404, $this->handle($app, 'GET', '/about/team')->status());
-        self::assertSame(404, $this->handle($app, 'POST', '/about')->status());
+        $post = $this->handle($app, 'POST', '/about');
+        self::assertSame(405, $post->status());
+        self::assertSame('GET, HEAD', $post->headers()['Allow']);
     }
 
     public function testOnIntCapturesIntegersAndRejectsInvalidSegments(): void
@@ -118,11 +125,10 @@ final class RoutingTreeTest extends TestCase
         self::assertSame('{"id":42}', $this->handle($app, 'GET', '/users/42')->body());
         self::assertSame('{"id":0}', $this->handle($app, 'GET', '/users/0')->body());
 
-        // on('users') already took the branch — unmatched inner matchers are empty 200, not 404.
         foreach (['/users/abc', '/users/01', '/users/-1', '/users/1.5', '/users/9223372036854775808'] as $path) {
             $miss = $this->handle($app, 'GET', $path);
-            self::assertSame(200, $miss->status(), $path);
-            self::assertSame('', $miss->body(), $path);
+            self::assertSame(404, $miss->status(), $path);
+            self::assertSame('Not Found', $miss->body(), $path);
         }
 
         $top = $this->app(function (Request $r): void {
@@ -247,6 +253,65 @@ final class RoutingTreeTest extends TestCase
             $this->handle($app, 'GET', '/users')->body(),
             $this->handle($app, 'GET', '/users/')->body(),
         );
+    }
+
+    public function testHeadUsesGetHandler(): void
+    {
+        $app = $this->canonical();
+        $response = $this->handle($app, 'HEAD', '/users');
+        self::assertSame(200, $response->status());
+        self::assertSame('[{"id":1,"name":"John"}]', $response->body());
+    }
+
+    public function testOptionsReturnsAllowWhenVerbsWereVisited(): void
+    {
+        $app = $this->canonical();
+        $response = $this->handle($app, 'OPTIONS', '/users');
+        self::assertSame(204, $response->status());
+        self::assertSame('GET, HEAD, POST', $response->headers()['Allow']);
+        self::assertSame('', $response->body());
+    }
+
+    public function testCustomNotFoundHandler(): void
+    {
+        $app = $this->canonical()->notFound(function (Request $r): void {
+            $r->json(['error' => 'missing'], 404);
+        });
+
+        $response = $this->handle($app, 'GET', '/nope');
+        self::assertSame(404, $response->status());
+        self::assertSame('{"error":"missing"}', $response->body());
+    }
+
+    public function testErrorHandlerCatchesThrowables(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->root(function (): void {
+                throw new \RuntimeException('boom');
+            });
+        })->error(function (\Throwable $e, Request $r): void {
+            $r->json(['error' => $e->getMessage()], 500);
+        });
+
+        $response = $this->handle($app, 'GET', '/');
+        self::assertSame(500, $response->status());
+        self::assertSame('{"error":"boom"}', $response->body());
+    }
+
+    public function testRedirectAndNoContent(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->get('go', fn () => $r->redirect('/users', 301));
+            $r->delete('go', fn () => $r->noContent());
+        });
+
+        $redirect = $this->handle($app, 'GET', '/go');
+        self::assertSame(301, $redirect->status());
+        self::assertSame('/users', $redirect->headers()['Location']);
+
+        $empty = $this->handle($app, 'DELETE', '/go');
+        self::assertSame(204, $empty->status());
+        self::assertSame('', $empty->body());
     }
 
     public function testQueryStringDoesNotAffectMatching(): void
