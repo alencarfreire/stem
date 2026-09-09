@@ -34,6 +34,31 @@ const i18n = {
   },
 }[locale];
 
+const THEME_KEY = "stem-theme";
+
+function currentTheme() {
+  const stored = localStorage.getItem(THEME_KEY);
+  return stored === "light" || stored === "dark" ? stored : "system";
+}
+
+function applyTheme(mode) {
+  if (mode === "light" || mode === "dark") {
+    document.documentElement.setAttribute("data-theme", mode);
+    localStorage.setItem(THEME_KEY, mode);
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+    localStorage.removeItem(THEME_KEY);
+  }
+  document.querySelectorAll("[data-theme-value]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.themeValue === currentTheme()));
+  });
+}
+
+applyTheme(currentTheme());
+document.querySelectorAll("[data-theme-value]").forEach((button) => {
+  button.addEventListener("click", () => applyTheme(button.dataset.themeValue));
+});
+
 const nav = document.getElementById("nav");
 const menuBtn = document.getElementById("menu");
 const logEl = document.getElementById("play-log");
