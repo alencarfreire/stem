@@ -210,6 +210,41 @@ final class RoutingTreeTest extends TestCase
         self::assertSame(404, $this->handle($app, 'GET', '/other')->status());
     }
 
+    public function testBranchesLooksUpTheNextSegmentInConstantTime(): void
+    {
+        $log = new class () {
+            /** @var list<string> */
+            public array $hits = [];
+        };
+        $app = $this->app(function (Request $r) use ($log): void {
+            $r->root(fn () => $r->json(['root' => true]));
+            $r->branches([
+                'users' => function (Request $r) use ($log): void {
+                    $log->hits[] = 'users';
+                    $r->get(fn () => $r->json(['from' => 'users']));
+                },
+                'customers' => function (Request $r) use ($log): void {
+                    $log->hits[] = 'customers';
+                    $r->get(fn () => $r->json(['from' => 'customers']));
+                },
+            ]);
+        });
+
+        self::assertSame('{"root":true}', $this->handle($app, 'GET', '/')->body());
+        self::assertSame([], $log->hits);
+
+        self::assertSame('{"from":"customers"}', $this->handle($app, 'GET', '/customers')->body());
+        self::assertSame(['customers'], $log->hits);
+
+        $log->hits = [];
+        self::assertSame('{"from":"users"}', $this->handle($app, 'GET', '/users')->body());
+        self::assertSame(['users'], $log->hits);
+
+        $log->hits = [];
+        self::assertSame(404, $this->handle($app, 'GET', '/other')->status());
+        self::assertSame([], $log->hits);
+    }
+
     public function testNestedUsersIdGet(): void
     {
         $app = $this->canonical();

@@ -461,6 +461,7 @@ assert($response-&gt;body() === '{"id":3,"name":"Grace"}');</code></pre>
             <tr><td><code>$r-&gt;isInt($cb)</code></td><td>Exact remaining integer. Does not match <code>/users/1/posts</code>.</td></tr>
             <tr><td><code>$r-&gt;onParam($cb)</code> / <code>isParam($cb)</code></td><td>String segment, prefix or exact.</td></tr>
             <tr><td><code>$r-&gt;run($branch)</code></td><td>Mount <code>function (Request $r)</code>. Does not seal on miss.</td></tr>
+            <tr><td><code>$r-&gt;branches(['users' =&gt; $cb])</code></td><td>O(1) lookup of the next segment (Roda <code>hash_branches</code>). Hit consumes the key, then seals. Remaining path inside the callback is <em>after</em> the key. Miss leaves later matchers free to run.</td></tr>
             <tr><td><code>$r-&gt;json($data, $status = 200)</code></td><td>JSON body. Does not throw.</td></tr>
             <tr><td><code>$r-&gt;html($html, $status = 200)</code></td><td>HTML body. Does not throw.</td></tr>
             <tr><td><code>$r-&gt;halt($status, $body, $headers)</code></td><td>Early exit (<code>never</code>).</td></tr>
@@ -589,7 +590,16 @@ FrankenPhpWorker::run(
 
       <section id="performance">
         <h2>Performance</h2>
-        <p>Routing is <code>O(path depth × siblings at that level)</code>, not <code>O(total routes)</code>. No regex, no Reflection, no exception on <code>json()</code>.</p>
+        <p>Routing is <code>O(path depth × siblings at that level)</code>, not <code>O(total routes)</code>. At a busy root, <code>branches()</code> makes that level <code>O(1)</code> (hash lookup), like Roda <code>hash_branches</code>. No regex, no Reflection, no exception on <code>json()</code>.</p>
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">$r-&gt;root(fn () =&gt; $r-&gt;json(['ok' =&gt; true]));
+$r-&gt;branches([
+    'users' =&gt; $makeUsers($users),
+    'customers' =&gt; $makeCustomers($customers),
+]);</code></pre>
+        </div>
+        <p>Inside <code>$makeUsers</code> the remaining path is already past <code>users</code> — do not wrap it in another <code>on('users')</code>. That is the difference from <code>run()</code>, which does not consume a key.</p>
         <div class="prewrap" data-lang="BASH">
           <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
           <pre><code class="language-bash">php -S 127.0.0.1:8080 index.php

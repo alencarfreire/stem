@@ -78,6 +78,7 @@ The route closure **runs on every request**. Matchers consume the remaining path
 | `$r->onParam($cb)` | Prefix: next non-empty segment, as `string`. |
 | `$r->isParam($cb)` | Exact remaining one segment. |
 | `$r->run($branch)` | Run `function (Request $r)` on the current path; does not seal on miss. |
+| `$r->branches(['users' => $cb])` | O(1) lookup of the next segment (Roda `hash_branches`). |
 | `$r->json($data, $status = 200)` | JSON body + `Content-Type`. Sets `$done`. Does not throw. |
 | `$r->html($html, $status = 200)` | HTML body. Sets `$done`. Does not throw. |
 | `$r->halt($status, $body, $headers)` | Early exit (`never`). Throws an internal `HaltException`. |

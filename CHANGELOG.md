@@ -6,6 +6,7 @@
 - `$r->isInt()` / `$r->isParam()` — exact remaining segment (does not swallow `/users/1/posts`)
 - `$r->run(callable(Request): void)` — compose routing files without sealing on miss
 - `examples/app/` — indicated PDO + repository + route-file layout (documented on Pages)
+- `$r->branches(['users' => $cb, ...])` — O(1) next-segment dispatch (Roda `hash_branches`)
 
 ## 0.2.0 — 2026-09-09
 

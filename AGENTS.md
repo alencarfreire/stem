@@ -68,6 +68,7 @@ Do not invent new public classes without a product reason. Prefer extending `Req
 | `onParam($cb)` | next non-empty segment | `$cb($seg)` then seal |
 | `isParam($cb)` | exact remaining one segment | `$cb($seg)` then seal |
 | `run($branch)` | invoke `callable(Request): void` on current remaining path | does **not** seal; miss lets siblings run |
+| `branches(array<string, callable(Request): void>)` | O(1) lookup of next segment (Roda `hash_branches`). Hit consumes the key. | runs branch then **seals**. Miss is a no-op |
 | `json` / `html` / `redirect` / `noContent` | write response | written, **no throw** |
 | `halt` | write response | written, **throw HaltException** |
 

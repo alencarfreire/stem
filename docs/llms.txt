@@ -77,6 +77,7 @@ Right: `$r->on('users', function () use ($r) { ... })`
 | `$r->onParam($cb)` | next non-empty segment as string |
 | `$r->isParam($cb)` | exact remaining one segment |
 | `$r->run($branch)` | `callable(Request): void` on current path; does not seal |
+| `$r->branches(['users' => $cb, ...])` | O(1) next-segment lookup. Hit consumes the key then seals. Miss is a no-op. Callback remaining path is *after* the key. |
 | `$r->json($data, $status=200)` | write JSON, set done, no throw |
 | `$r->html($html, $status=200)` | write HTML, set done, no throw |
 | `$r->halt($status, $body='', $headers=[])` | write + throw HaltException (`never`) |

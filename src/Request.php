@@ -404,6 +404,31 @@ final class Request
     }
 
     /**
+     * O(1) dispatch on the next path segment (Roda hash_branches).
+     * On hit, consumes the segment, runs the branch, then seals.
+     * On miss, does nothing — later matchers can still run.
+     *
+     * The callable receives the current Request (remaining path is after the key).
+     *
+     * @param array<string, callable(Request): void> $branches
+     */
+    public function branches(array $branches): void
+    {
+        if ($this->isDone()) {
+            return;
+        }
+
+        $segment = $this->router->peek();
+        if ($segment === null || !isset($branches[$segment])) {
+            return;
+        }
+
+        $this->router->consume($segment);
+        $branches[$segment]($this);
+        $this->seal();
+    }
+
+    /**
      * @param string|callable(): void $segmentOrCallback
      * @param (callable(): void)|null $callback
      */
