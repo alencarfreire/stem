@@ -618,6 +618,30 @@ pre[class*="language-"] {
   color: #e6b35c;
 }
 
+.cap {
+  margin: 1.15rem 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cap:first-child {
+  margin-top: 0;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1.4rem;
+}
+
+.pair .prewrap {
+  margin: 0;
+}
+
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -680,7 +704,8 @@ footer {
     padding: 1.4rem 1.05rem 4rem;
   }
 
-  .grid-2 {
+  .grid-2,
+  .pair {
     grid-template-columns: 1fr;
   }
 }

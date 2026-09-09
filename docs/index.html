@@ -54,6 +54,14 @@
       <a href="#intro">Why a tree</a>
       <a href="#install">Install</a>
       <a href="#quickstart">Quick start</a>
+      <a href="#try">Try it</a>
+      <h2>Recipes</h2>
+      <a href="#json-post">POST JSON</a>
+      <a href="#auth">Bearer token</a>
+      <a href="#nested">Nested resources</a>
+      <a href="#split">Split route files</a>
+      <a href="#errors">404 and errors</a>
+      <a href="#tests">Tests without HTTP</a>
       <h2>Routing</h2>
       <a href="#tree">How matching works</a>
       <a href="#matchers">Matchers</a>
@@ -74,8 +82,8 @@
     <main class="content" id="main">
       <header class="hero" id="intro">
         <p class="kicker">alencarfreire/stem · v0.2.0 · PHP 8.3+</p>
-        <h1>Documentation</h1>
-        <p class="lede">StemPHP is an executable routing-tree micro-framework inspired by Roda. The route closure runs on every request. Matchers consume URI segments as they go. There is no compiled route table and no middleware stack in the core.</p>
+        <h1>A JSON API in one file.</h1>
+        <p class="lede">StemPHP is a Roda-style routing tree: the route closure runs on every request and consumes the URI segment by segment. No route table, no regex dump, no middleware stack. Copy the example, hit it with curl.</p>
         <ul class="pills">
           <li>PHP-FPM</li>
           <li>php -S</li>
@@ -91,12 +99,12 @@
           <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
           <pre><code class="language-bash">composer require alencarfreire/stem:^0.2</code></pre>
         </div>
-        <p>Requires PHP 8.3+. FrankenPHP, RoadRunner and Swoole are optional. The core <code>require</code> is only <code>php</code>.</p>
+        <p>PHP 8.3+. Zero runtime dependencies. FrankenPHP, RoadRunner and Swoole are optional.</p>
       </section>
 
       <section id="quickstart">
         <h2>Quick start</h2>
-        <p>Create <code>index.php</code> in your project root (next to <code>vendor/</code>):</p>
+        <p>Create <code>index.php</code> next to <code>vendor/</code>. This is a small users API: list, create, show, nested posts, delete, JSON 404.</p>
         <div class="prewrap" data-lang="PHP">
           <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
           <pre><code class="language-php">&lt;?php
@@ -110,44 +118,263 @@ use Stem\Request;
 
 $app = new App();
 
+$app-&gt;notFound(fn (Request $r) =&gt; $r-&gt;json(['error' =&gt; 'not_found'], 404));
+
 $app-&gt;route(function (Request $r): void {
-    $r-&gt;root(fn () =&gt; $r-&gt;json(['message' =&gt; 'StemPHP API']));
+    $r-&gt;root(fn () =&gt; $r-&gt;json(['ok' =&gt; true, 'name' =&gt; 'StemPHP']));
 
     $r-&gt;on('users', function () use ($r): void {
-        $r-&gt;get(fn () =&gt; $r-&gt;json([['id' =&gt; 1, 'name' =&gt; 'John']]));
-        $r-&gt;post(fn () =&gt; $r-&gt;json(['id' =&gt; 2], 201));
+        $r-&gt;get(function () use ($r): void {
+            $page = (int) $r-&gt;queryParam('page', '1');
+            $r-&gt;json([
+                'page' =&gt; $page,
+                'data' =&gt; [
+                    ['id' =&gt; 1, 'name' =&gt; 'Ada'],
+                    ['id' =&gt; 2, 'name' =&gt; 'Linus'],
+                ],
+            ]);
+        });
+
+        $r-&gt;post(function () use ($r): void {
+            $body = $r-&gt;jsonBody() ?? [];
+            $name = $body['name'] ?? '';
+            if (!is_string($name) || $name === '') {
+                $r-&gt;json(['error' =&gt; 'name required'], 422);
+                return;
+            }
+            $r-&gt;json(['id' =&gt; 3, 'name' =&gt; $name], 201);
+        });
 
         $r-&gt;onInt(function (int $id) use ($r): void {
-            $r-&gt;get(fn () =&gt; $r-&gt;json(['id' =&gt; $id, 'name' =&gt; 'John']));
-            $r-&gt;delete(fn () =&gt; $r-&gt;halt(204));
+            $r-&gt;on('posts', function () use ($r, $id): void {
+                $r-&gt;get(fn () =&gt; $r-&gt;json([
+                    'user_id' =&gt; $id,
+                    'posts' =&gt; [['id' =&gt; 10, 'title' =&gt; 'Hello']],
+                ]));
+            });
+
+            $r-&gt;get(fn () =&gt; $r-&gt;json(['id' =&gt; $id, 'name' =&gt; 'Ada']));
+            $r-&gt;delete(fn () =&gt; $r-&gt;noContent());
         });
     });
 });
 
 $app-&gt;run();</code></pre>
         </div>
-        <p>Start the built-in server with that file as the router (so <code>/users</code> is not looked up as a path on disk):</p>
+        <p>Start the built-in server with that file as the <strong>router</strong> (otherwise <code>/users</code> is looked up as a file on disk):</p>
         <div class="prewrap" data-lang="BASH">
           <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
           <pre><code class="language-bash">php -S localhost:8080 index.php</code></pre>
         </div>
       </section>
 
+      <section id="try">
+        <h2>Try it</h2>
+        <p>Same process, real HTTP. Status codes in comments are what Stem returns.</p>
+
+        <p class="cap">Health</p>
+        <div class="pair">
+          <div class="prewrap" data-lang="BASH">
+            <div class="prewrap-bar"><span>HTTP</span><button class="copy" type="button" data-copy>Copy</button></div>
+            <pre><code class="language-bash">curl -s localhost:8080/</code></pre>
+          </div>
+          <div class="prewrap" data-lang="JSON">
+            <div class="prewrap-bar"><span>200</span><button class="copy" type="button" data-copy>Copy</button></div>
+            <pre><code class="language-json">{ "ok": true, "name": "StemPHP" }</code></pre>
+          </div>
+        </div>
+
+        <p class="cap">List with query string</p>
+        <div class="pair">
+          <div class="prewrap" data-lang="BASH">
+            <div class="prewrap-bar"><span>HTTP</span><button class="copy" type="button" data-copy>Copy</button></div>
+            <pre><code class="language-bash">curl -s 'localhost:8080/users?page=2'</code></pre>
+          </div>
+          <div class="prewrap" data-lang="JSON">
+            <div class="prewrap-bar"><span>200</span><button class="copy" type="button" data-copy>Copy</button></div>
+            <pre><code class="language-json">{
+  "page": 2,
+  "data": [
+    { "id": 1, "name": "Ada" },
+    { "id": 2, "name": "Linus" }
+  ]
+}</code></pre>
+          </div>
+        </div>
+
+        <p class="cap">Create</p>
+        <div class="pair">
+          <div class="prewrap" data-lang="BASH">
+            <div class="prewrap-bar"><span>HTTP</span><button class="copy" type="button" data-copy>Copy</button></div>
+            <pre><code class="language-bash">curl -s -X POST localhost:8080/users \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Grace"}'</code></pre>
+          </div>
+          <div class="prewrap" data-lang="JSON">
+            <div class="prewrap-bar"><span>201</span><button class="copy" type="button" data-copy>Copy</button></div>
+            <pre><code class="language-json">{ "id": 3, "name": "Grace" }</code></pre>
+          </div>
+        </div>
+
+        <p class="cap">Show, nested collection, delete</p>
+        <div class="prewrap" data-lang="BASH">
+          <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-bash">curl -s localhost:8080/users/1
+# 200  {"id":1,"name":"Ada"}
+
+curl -s localhost:8080/users/1/posts
+# 200  {"user_id":1,"posts":[{"id":10,"title":"Hello"}]}
+
+curl -s -o /dev/null -w '%{http_code}\n' -X DELETE localhost:8080/users/1
+# 204
+
+curl -s localhost:8080/nope
+# 404  {"error":"not_found"}
+
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT localhost:8080/users
+# 405  Allow: GET, HEAD, POST</code></pre>
+        </div>
+      </section>
+
+      <section id="json-post">
+        <h2>POST JSON</h2>
+        <p><code>jsonBody()</code> decodes the raw body. Invalid JSON is <code>halt(400)</code>. Empty body is <code>null</code>.</p>
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">$r-&gt;on('users', function () use ($r): void {
+    $r-&gt;post(function () use ($r): void {
+        $body = $r-&gt;jsonBody() ?? [];
+        $name = $body['name'] ?? '';
+        if (!is_string($name) || $name === '') {
+            $r-&gt;json(['error' =&gt; 'name required'], 422);
+            return;
+        }
+        $r-&gt;json(['id' =&gt; 3, 'name' =&gt; $name], 201);
+    });
+});</code></pre>
+        </div>
+      </section>
+
+      <section id="auth">
+        <h2>Bearer token</h2>
+        <p>Load the user (or reject) once on the branch, then every nested verb sees the same check.</p>
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">$r-&gt;on('admin', function () use ($r): void {
+    if ($r-&gt;bearerToken() !== 'secret') {
+        $r-&gt;json(['error' =&gt; 'unauthorized'], 401);
+        return;
+    }
+
+    $r-&gt;get(fn () =&gt; $r-&gt;json(['ok' =&gt; true]));
+    $r-&gt;post(fn () =&gt; $r-&gt;json(['queued' =&gt; true], 202));
+});</code></pre>
+        </div>
+        <div class="pair">
+          <div class="prewrap" data-lang="BASH">
+            <div class="prewrap-bar"><span>HTTP</span><button class="copy" type="button" data-copy>Copy</button></div>
+            <pre><code class="language-bash">curl -s localhost:8080/admin
+# 401 {"error":"unauthorized"}
+
+curl -s localhost:8080/admin \
+  -H 'Authorization: Bearer secret'</code></pre>
+          </div>
+          <div class="prewrap" data-lang="JSON">
+            <div class="prewrap-bar"><span>200</span><button class="copy" type="button" data-copy>Copy</button></div>
+            <pre><code class="language-json">{ "ok": true }</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="nested">
+        <h2>Nested resources</h2>
+        <p>Put <code>on('posts')</code> <em>before</em> the leaf <code>get()</code>. <code>onInt</code> is a prefix (still matches <code>/users/1/posts</code>). Use <code>isInt</code> when the id must be the last segment.</p>
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">$r-&gt;on('users', function () use ($r): void {
+    $r-&gt;onInt(function (int $id) use ($r): void {
+        $r-&gt;on('posts', function () use ($r, $id): void {
+            $r-&gt;get(fn () =&gt; $r-&gt;json(['user_id' =&gt; $id, 'posts' =&gt; []]));
+        });
+
+        $r-&gt;get(fn () =&gt; $r-&gt;json(['id' =&gt; $id]));
+        $r-&gt;delete(fn () =&gt; $r-&gt;noContent());
+    });
+});</code></pre>
+        </div>
+        <p><code>GET /users/1</code> → show. <code>GET /users/1/posts</code> → nested. <code>GET /users/1/nope</code> → 404. <code>PUT /users/1</code> → 405 + <code>Allow: DELETE, GET, HEAD</code>.</p>
+      </section>
+
+      <section id="split">
+        <h2>Split route files</h2>
+        <p><code>run()</code> mounts another <code>function (Request $r)</code> on the current remaining path. A miss does <strong>not</strong> seal, so the next <code>run()</code> can still match.</p>
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">// routes/users.php
+return function (Request $r): void {
+    $r-&gt;on('users', function () use ($r): void {
+        $r-&gt;get(fn () =&gt; $r-&gt;json([['id' =&gt; 1]]));
+    });
+};
+
+// index.php
+$app-&gt;route(function (Request $r): void {
+    $r-&gt;run(require __DIR__ . '/routes/users.php');
+    $r-&gt;run(require __DIR__ . '/routes/posts.php');
+});</code></pre>
+        </div>
+      </section>
+
+      <section id="errors">
+        <h2>404 and errors</h2>
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">$app-&gt;notFound(fn (Request $r) =&gt; $r-&gt;json([
+    'error' =&gt; 'not_found',
+    'path' =&gt; $r-&gt;path(),
+], 404));
+
+$app-&gt;error(function (Throwable $e, Request $r): void {
+    $r-&gt;json(['error' =&gt; 'server_error', 'detail' =&gt; $e-&gt;getMessage()], 500);
+});</code></pre>
+        </div>
+        <p>Without these, a total miss is plain <code>404 Not Found</code>. Uncaught throwables bubble to the SAPI. <code>HaltException</code> from <code>halt()</code> is never sent to <code>error()</code>.</p>
+      </section>
+
+      <section id="tests">
+        <h2>Tests without HTTP</h2>
+        <p>No need to boot a server. <code>Request::create</code> + <code>App::handle</code>.</p>
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">$response = $app-&gt;handle(Request::create(
+    'POST',
+    '/users',
+    ['Content-Type' =&gt; 'application/json'],
+    [],
+    '{"name":"Grace"}',
+));
+
+assert($response-&gt;status() === 201);
+assert($response-&gt;body() === '{"id":3,"name":"Grace"}');</code></pre>
+        </div>
+      </section>
+
       <section id="tree">
         <h2>How matching works</h2>
-        <p>Roda does not compile routes into a trie at boot. StemPHP does the same: <code>App</code> stores one closure. <code>handle()</code> runs it. Each matcher is an <code>if</code> that may consume the next segment.</p>
+        <p>The route closure runs on every request. Each matcher is an <code>if</code> that may consume the next segment. There is no compiled trie.</p>
         <div class="tree" aria-hidden="true">
           <div class="row"><span class="dim">GET /users/7</span></div>
           <div class="row"><span class="dim">remaining</span> <span class="seg">/users/7</span></div>
           <div class="row"><span class="dim">on('users')</span> <span class="seg">consume users</span> <span class="dim">→ /7</span></div>
           <div class="row"><span class="dim">get() atEnd?</span> <span class="dim">no — skip</span></div>
           <div class="row"><span class="dim">onInt()</span> <span class="seg">capture 7</span> <span class="dim">→ empty</span></div>
+          <div class="row"><span class="dim">on('posts')</span> <span class="dim">no remaining — skip</span></div>
           <div class="row"><span class="dim">get()</span> <span class="seg">terminal leaf</span> <span class="dim">→ json</span></div>
         </div>
         <ul>
-          <li>A matcher that hits runs its callback, then seals that level. Siblings do not run.</li>
-          <li>If nothing in the whole tree hits, <code>handle()</code> returns <strong>404</strong>.</li>
-          <li>If a branch hits but no leaf writes a body: leftover path → <strong>404</strong>; wrong method → <strong>405</strong> with <code>Allow</code>. There is no backtracking.</li>
+          <li>A hit runs the callback, then seals that level. Siblings do not run.</li>
+          <li>Total miss → <strong>404</strong>.</li>
+          <li>Branch taken, leftover path → <strong>404</strong>. Wrong method → <strong>405</strong> + <code>Allow</code>. No backtracking.</li>
         </ul>
       </section>
 
@@ -164,38 +391,37 @@ $app-&gt;run();</code></pre>
             <tr><td><code>$r-&gt;get($cb)</code> / <code>post</code> / <code>put</code> / <code>delete</code> / <code>patch</code></td><td>HTTP method <em>and</em> remaining path empty (terminal).</td></tr>
             <tr><td><code>$r-&gt;get('about', $cb)</code></td><td>Method + exact remaining <code>/about</code>.</td></tr>
             <tr><td><code>$r-&gt;root($cb)</code></td><td>Remaining is <code>/</code> or empty. Any method.</td></tr>
-            <tr><td><code>$r-&gt;onInt($cb)</code></td><td>Prefix: next segment is an integer (<code>0</code>, <code>42</code>; not <code>01</code>, <code>-1</code>).</td></tr>
+            <tr><td><code>$r-&gt;onInt($cb)</code></td><td>Prefix integer. Still matches <code>/users/1/posts</code>.</td></tr>
             <tr><td><code>$r-&gt;isInt($cb)</code></td><td>Exact remaining integer. Does not match <code>/users/1/posts</code>.</td></tr>
-            <tr><td><code>$r-&gt;onParam($cb)</code></td><td>Prefix: next non-empty segment as <code>string</code>.</td></tr>
-            <tr><td><code>$r-&gt;isParam($cb)</code></td><td>Exact remaining one segment.</td></tr>
-            <tr><td><code>$r-&gt;run($branch)</code></td><td>Run <code>function (Request $r)</code> on the current path. Does not seal; a miss lets the next sibling run. Use to split routes across files.</td></tr>
-            <tr><td><code>$r-&gt;json($data, $status = 200)</code></td><td>JSON body + content type. Sets <code>$done</code>. Does not throw.</td></tr>
-            <tr><td><code>$r-&gt;html($html, $status = 200)</code></td><td>HTML body. Sets <code>$done</code>. Does not throw.</td></tr>
-            <tr><td><code>$r-&gt;halt($status, $body, $headers)</code></td><td>Early exit (<code>never</code>). Throws internal <code>HaltException</code>.</td></tr>
-            <tr><td><code>$r-&gt;redirect($url, $status = 302)</code></td><td><code>Location</code> + status.</td></tr>
+            <tr><td><code>$r-&gt;onParam($cb)</code> / <code>isParam($cb)</code></td><td>String segment, prefix or exact.</td></tr>
+            <tr><td><code>$r-&gt;run($branch)</code></td><td>Mount <code>function (Request $r)</code>. Does not seal on miss.</td></tr>
+            <tr><td><code>$r-&gt;json($data, $status = 200)</code></td><td>JSON body. Does not throw.</td></tr>
+            <tr><td><code>$r-&gt;html($html, $status = 200)</code></td><td>HTML body. Does not throw.</td></tr>
+            <tr><td><code>$r-&gt;halt($status, $body, $headers)</code></td><td>Early exit (<code>never</code>).</td></tr>
+            <tr><td><code>$r-&gt;redirect($url, $status = 302)</code></td><td><code>Location</code>.</td></tr>
             <tr><td><code>$r-&gt;noContent()</code></td><td>HTTP 204.</td></tr>
-            <tr><td><code>$r-&gt;cookie($name, $value, $options = [])</code></td><td><code>Set-Cookie</code> (no CR/LF).</td></tr>
-            <tr><td><code>$r-&gt;options($cb)</code></td><td>Same as other verbs. Bare <code>OPTIONS</code> also gets automatic <code>204</code> + <code>Allow</code> when verbs were visited.</td></tr>
+            <tr><td><code>$r-&gt;cookie($name, $value, $options = [])</code></td><td><code>Set-Cookie</code>.</td></tr>
           </tbody>
         </table>
-        <p class="note"><strong>Deviation from Roda:</strong> <code>get()</code> / <code>post()</code> without a segment are terminal (method + empty remaining). Roda’s bare <code>r.get</code> matches GET even with leftover path — easy to swallow <code>/users/1/posts</code>. Put nested <code>on()</code> branches <em>above</em> the leaf <code>get()</code>.</p>
+        <p class="note"><strong>Not Roda:</strong> bare <code>get()</code> / <code>post()</code> are terminal (method + empty remaining). Nest <code>on()</code> branches <em>above</em> the leaf <code>get()</code>.</p>
       </section>
 
       <section id="callbacks">
         <h2>Callbacks and <code>$r</code></h2>
-        <p>Matchers do not inject <code>Request</code> as an argument. That keeps Reflection off the hot path. Capture <code>$r</code> from the <code>route()</code> closure with <code>use ($r)</code> or arrows:</p>
+        <p>Matchers do not inject <code>Request</code>. Capture <code>$r</code> with <code>use ($r)</code> or arrows. Only <code>onInt</code> / <code>isInt</code> / <code>onParam</code> / <code>isParam</code> pass a capture. <code>run()</code> is the exception: it receives <code>function (Request $r)</code>, same as <code>App::route()</code>.</p>
         <div class="prewrap" data-lang="PHP">
           <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
           <pre><code class="language-php">$r-&gt;on('users', function () use ($r): void {
-    $r-&gt;onInt(fn (int $id) =&gt; $r-&gt;json(['id' =&gt; $id]));
+    $r-&gt;isInt(function (int $id) use ($r): void {
+        $r-&gt;get(fn () =&gt; $r-&gt;json(['id' =&gt; $id]));
+    });
 });</code></pre>
         </div>
-        <p>Only <code>onInt</code> / <code>onParam</code> pass extra arguments (the capture). <code>function (Request $r)</code> as a matcher parameter will error.</p>
       </section>
 
       <section id="playground">
         <h2>Path playground</h2>
-        <p>Same tree as the quick start. Click a request and watch consume / miss / leaf.</p>
+        <p>Same tree as the original mini example. Click a request and watch consume / miss / leaf.</p>
         <div class="playground">
           <div class="paths">
             <button type="button" data-play="GET /" aria-pressed="true">GET /</button>
@@ -212,40 +438,35 @@ $app-&gt;run();</code></pre>
 
       <section id="request">
         <h2>Request</h2>
-        <p><code>Request</code> is both the HTTP message and the routing context (<code>$r</code>).</p>
+        <p><code>$r</code> is the HTTP message and the routing context.</p>
         <table>
           <thead>
             <tr><th>Method</th><th>Role</th></tr>
           </thead>
           <tbody>
-            <tr><td><code>Request::fromGlobals()</code></td><td>FPM / worker handler. Call <em>inside</em> the per-request loop.</td></tr>
-            <tr><td><code>Request::create($method, $path, $headers, $query, $body)</code></td><td>Tests, RoadRunner, Swoole.</td></tr>
+            <tr><td><code>Request::fromGlobals()</code></td><td>FPM / worker. Call <em>inside</em> the per-request loop.</td></tr>
+            <tr><td><code>Request::create($method, $path, $headers, $query, $body, $post)</code></td><td>Tests and adapters.</td></tr>
             <tr><td><code>method()</code> / <code>path()</code> / <code>remaining()</code></td><td>Verb, normalized path, unconsumed suffix.</td></tr>
-            <tr><td><code>header($name)</code> / <code>headers()</code></td><td>Lazy: <code>$_SERVER</code> is scanned only on first access.</td></tr>
-            <tr><td><code>query()</code> / <code>queryParam($key, $default)</code></td><td>Full query array, or one key.</td></tr>
-            <tr><td><code>form()</code> / <code>formParam($key, $default)</code></td><td><code>$_POST</code> fields from <code>fromGlobals()</code>.</td></tr>
-            <tr><td><code>rawBody()</code> / <code>jsonBody()</code></td><td>Raw body. JSON decode; invalid JSON → <code>halt(400)</code>. GET/HEAD skip <code>php://input</code>.</td></tr>
+            <tr><td><code>header($name)</code> / <code>headers()</code></td><td>Lazy scan of <code>$_SERVER</code>.</td></tr>
+            <tr><td><code>query()</code> / <code>queryParam($key, $default)</code></td><td>Query string.</td></tr>
+            <tr><td><code>form()</code> / <code>formParam($key, $default)</code></td><td><code>$_POST</code> from <code>fromGlobals()</code>.</td></tr>
+            <tr><td><code>rawBody()</code> / <code>jsonBody()</code></td><td>Raw body. Invalid JSON → <code>halt(400)</code>.</td></tr>
             <tr><td><code>bearerToken()</code> / <code>wantsJson()</code></td><td><code>Authorization: Bearer</code> and <code>Accept</code>.</td></tr>
-            <tr><td><code>response()</code></td><td>Allocates <code>Response</code> on first write.</td></tr>
           </tbody>
         </table>
-        <p>Paths are normalized: trailing slash stripped (except <code>/</code>), <code>//</code> collapsed, query/fragment dropped, percent-decoding per segment.</p>
       </section>
 
       <section id="response">
         <h2>Response</h2>
-        <p>Mutable and request-scoped. <code>json()</code> / <code>html()</code> / <code>redirect()</code> / <code>noContent()</code> write here. <code>HEAD</code> matches <code>get()</code>; <code>send()</code> omits the body.</p>
-        <table>
-          <thead>
-            <tr><th>Method</th><th>Role</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><code>status()</code> / <code>headers()</code> / <code>body()</code></td><td>Read the current message.</td></tr>
-            <tr><td><code>withStatus</code> / <code>withHeader</code> / <code>withBody</code></td><td>Fluent mutators. CR/LF in headers is rejected.</td></tr>
-            <tr><td><code>writeJson</code> / <code>writeHtml</code></td><td>Body + content type. JSON uses <code>JSON_THROW_ON_ERROR</code>.</td></tr>
-            <tr><td><code>send()</code></td><td><code>http_response_code</code>, headers, echo. Idempotent.</td></tr>
-          </tbody>
-        </table>
+        <p><code>json</code> / <code>html</code> / <code>redirect</code> / <code>noContent</code> write here. <code>HEAD</code> matches <code>get()</code>; <code>send()</code> omits the body.</p>
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
+          <pre><code class="language-php">$r-&gt;json(['ok' =&gt; true], 200);
+$r-&gt;html('&lt;h1&gt;Hi&lt;/h1&gt;');
+$r-&gt;redirect('/users', 302);
+$r-&gt;noContent();
+$r-&gt;cookie('sid', 'abc', ['path' =&gt; '/', 'httponly' =&gt; true, 'samesite' =&gt; 'Lax']);</code></pre>
+        </div>
       </section>
 
       <section id="app">
@@ -257,10 +478,9 @@ $response = $app-&gt;handle($request);   // per request
 $app-&gt;run();                          // fromGlobals + handle + send</code></pre>
         </div>
         <ul>
-          <li><code>route()</code> may be called once. A second call throws <code>LogicException</code>.</li>
-          <li><code>notFound(fn (Request $r) =&gt; ...)</code> and <code>error(fn (Throwable $e, Request $r) =&gt; ...)</code> are optional.</li>
-          <li><code>handle()</code> catches <code>HaltException</code>. Other throwables go to <code>error()</code> if set, otherwise bubble.</li>
-          <li>Happy path (<code>json</code>/<code>html</code>) does not throw.</li>
+          <li><code>route()</code> once. A second call throws <code>LogicException</code>.</li>
+          <li><code>handle()</code> catches <code>HaltException</code>. Other throwables go to <code>error()</code> if set.</li>
+          <li>Happy path (<code>json</code> / <code>html</code>) does not throw.</li>
         </ul>
       </section>
 
@@ -269,19 +489,19 @@ $app-&gt;run();                          // fromGlobals + handle + send</code></
         <div class="grid-2">
           <article class="card">
             <h3>PHP-FPM / php -S</h3>
-            <p>Default. Serve the same <code>index.php</code> as the front controller (<code>php -S localhost:8080 index.php</code>, or point PHP-FPM/Apache at that file).</p>
+            <p>Default. <code>php -S localhost:8080 index.php</code>, or point PHP-FPM at that front controller.</p>
           </article>
           <article class="card">
             <h3>FrankenPHP worker</h3>
-            <p>Optional. Boot <code>$app</code> once, then <code>FrankenPhpWorker::run($app)</code>. <code>fromGlobals()</code> stays inside the loop.</p>
+            <p>Boot <code>$app</code> once. <code>fromGlobals()</code> stays inside the loop.</p>
           </article>
           <article class="card">
             <h3>RoadRunner</h3>
-            <p>No Composer require. Map the PSR-7 request to <code>Request::create</code>, then write status/headers/body. See <code>examples/roadrunner/</code>.</p>
+            <p>Map PSR-7 → <code>Request::create</code> → <code>handle()</code> → status/headers/body. See <code>examples/roadrunner/</code>.</p>
           </article>
           <article class="card">
             <h3>Swoole</h3>
-            <p>Same contract: <code>handle()</code> is the kernel. Example in <code>examples/swoole/server.php</code>.</p>
+            <p>Same <code>handle()</code> contract. Example: <code>examples/swoole/server.php</code>.</p>
           </article>
         </div>
         <div class="prewrap" data-lang="PHP">
@@ -291,32 +511,19 @@ $app-&gt;run();                          // fromGlobals + handle + send</code></
 FrankenPhpWorker::run(
     $app,
     maxRequests: (int) ($_SERVER['MAX_REQUESTS'] ?? 0),
-    collectEvery: 0, // gc_collect_cycles off; set 128 if an extension leaks
+    collectEvery: 0,
 );</code></pre>
         </div>
       </section>
 
       <section id="isolation">
         <h2>Isolation</h2>
-        <p>Long-lived workers reuse the <code>App</code> instance. They must not reuse a <code>Request</code>.</p>
-        <ul>
-          <li>No static request state on <code>App</code>, <code>Request</code>, <code>Response</code>, or <code>Router</code>.</li>
-          <li><code>handle()</code> always receives a new <code>Request</code>.</li>
-          <li><code>Response</code> is created on first write, not shared across requests.</li>
-          <li><code>Request::fromGlobals()</code> belongs in the handler, never at worker boot.</li>
-        </ul>
+        <p>Reuse <code>App</code>. Never reuse <code>Request</code>. No static request state. <code>fromGlobals()</code> belongs in the handler, not at worker boot.</p>
       </section>
 
       <section id="performance">
         <h2>Performance</h2>
-        <p>Routing cost is <code>O(path depth × siblings at that level)</code>, not <code>O(total routes)</code>. This is Roda’s model, not FastRoute’s compiled matcher.</p>
-        <ul>
-          <li>No regex, no Reflection, no exception on <code>json()</code> / <code>html()</code>.</li>
-          <li>Path parse uses <code>strpos</code> / <code>explode</code>. <code>rawurldecode</code> only if the URI contains <code>%</code>.</li>
-          <li><code>onInt</code> uses <code>ctype_digit</code> + <code>(int)</code>.</li>
-          <li>GET/HEAD skip <code>php://input</code>. Headers from <code>$_SERVER</code> are lazy.</li>
-        </ul>
-        <p>Measure on your hardware against your own <code>index.php</code>. Do not publish invented req/s:</p>
+        <p>Routing is <code>O(path depth × siblings at that level)</code>, not <code>O(total routes)</code>. No regex, no Reflection, no exception on <code>json()</code>.</p>
         <div class="prewrap" data-lang="BASH">
           <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
           <pre><code class="language-bash">php -S 127.0.0.1:8080 index.php
@@ -331,15 +538,14 @@ wrk -t4 -c64 -d10s http://127.0.0.1:8080/</code></pre>
             <tr><th>Class</th><th>Role</th></tr>
           </thead>
           <tbody>
-            <tr><td><code>Stem\App</code></td><td>Kernel. <code>route</code>, <code>handle</code>, <code>run</code>.</td></tr>
+            <tr><td><code>Stem\App</code></td><td><code>route</code>, <code>handle</code>, <code>run</code>, <code>notFound</code>, <code>error</code>.</td></tr>
             <tr><td><code>Stem\Request</code></td><td>HTTP + routing context.</td></tr>
-            <tr><td><code>Stem\Response</code></td><td>Status, headers, body, <code>send()</code>.</td></tr>
+            <tr><td><code>Stem\Response</code></td><td>Status, headers, body, cookies, <code>send()</code>.</td></tr>
             <tr><td><code>Stem\Router</code></td><td>Internal path cursor (<code>@internal</code>).</td></tr>
             <tr><td><code>Stem\Exceptions\HaltException</code></td><td>Only <code>halt()</code>.</td></tr>
             <tr><td><code>Stem\Integrations\FrankenPhpWorker</code></td><td>Optional worker loop.</td></tr>
           </tbody>
         </table>
-        <p>PHPUnit 8.3/8.4 on CI. <code>composer test</code> / <code>composer analyze</code> (PHPStan 9).</p>
       </section>
 
       <footer>
@@ -352,6 +558,7 @@ wrk -t4 -c64 -d10s http://127.0.0.1:8080/</code></pre>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup-templating.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-php.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
   <script src="./app.js"></script>
 </body>

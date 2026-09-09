@@ -23,15 +23,26 @@ use Stem\App;
 use Stem\Request;
 
 $app = new App();
+$app->notFound(fn (Request $r) => $r->json(['error' => 'not_found'], 404));
 
 $app->route(function (Request $r): void {
-    $r->root(fn () => $r->json(['message' => 'StemPHP API']));
+    $r->root(fn () => $r->json(['ok' => true]));
 
     $r->on('users', function () use ($r): void {
-        $r->get(fn () => $r->json([['id' => 1, 'name' => 'John']]));
+        $r->get(fn () => $r->json([['id' => 1, 'name' => 'Ada']]));
+
+        $r->post(function () use ($r): void {
+            $name = ($r->jsonBody() ?? [])['name'] ?? '';
+            if ($name === '') {
+                $r->json(['error' => 'name required'], 422);
+                return;
+            }
+            $r->json(['id' => 2, 'name' => $name], 201);
+        });
 
         $r->onInt(function (int $id) use ($r): void {
-            $r->get(fn () => $r->json(['id' => $id, 'name' => 'John']));
+            $r->get(fn () => $r->json(['id' => $id, 'name' => 'Ada']));
+            $r->delete(fn () => $r->noContent());
         });
     });
 });
@@ -42,6 +53,10 @@ $app->run();
 ```bash
 composer require alencarfreire/stem:^0.2
 php -S localhost:8080 index.php
+
+curl -s localhost:8080/users
+curl -s -X POST localhost:8080/users -H 'Content-Type: application/json' -d '{"name":"Grace"}'
+curl -s localhost:8080/users/1
 ```
 
 ## Routing tree
