@@ -600,10 +600,46 @@ $r-&gt;branches([
 ]);</code></pre>
         </div>
         <p>Dentro de <code>$makeUsers</code> o path restante já passou de <code>users</code> — não envolva de novo com <code>on('users')</code>. Essa é a diferença para o <code>run()</code>, que não consome chave.</p>
+
+        <h3>Medido: Stem vs Flight vs Slim</h3>
+        <p>A mesma API (PDO + SQLite WAL, <code>customers</code> com 10 colunas), a mesma imagem (<code>dunglas/frankenphp</code>, PHP 8.5, JIT, 4 workers), a mesma carga: <code>wrk -t4 -c20 -d10s</code>. Docker Desktop no macOS. Células verdes são o melhor da linha. Números medidos, não inventados — reproduza no harness, não trate como verdade universal.</p>
+
+        <p class="cap">Leitura — <code>GET /customers</code></p>
+        <table>
+          <thead>
+            <tr><th>Métrica</th><th>StemPHP</th><th>FlightPHP 3</th><th>Slim 4</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Vazão</td><td class="best">7.282,90 req/s</td><td>6.775,64 req/s</td><td>6.250,74 req/s</td></tr>
+            <tr><td>Latência p50</td><td class="best">1,88 ms</td><td>2,16 ms</td><td>2,40 ms</td></tr>
+            <tr><td>Latência p99</td><td>59,44 ms</td><td>47,37 ms</td><td class="best">46,09 ms</td></tr>
+            <tr><td>RAM idle</td><td class="best">32,11 MB</td><td>33,88 MB</td><td>44,81 MB</td></tr>
+            <tr><td>RAM pico</td><td>66,46 MB</td><td class="best">51,62 MB</td><td>61,61 MB</td></tr>
+            <tr><td>CPU média / pico</td><td class="best">276% / 281%</td><td>318% / 322%</td><td>348% / 354%</td></tr>
+          </tbody>
+        </table>
+
+        <p class="cap">Escrita — <code>POST /customers</code></p>
+        <table>
+          <thead>
+            <tr><th>Métrica</th><th>StemPHP</th><th>FlightPHP 3</th><th>Slim 4</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Vazão</td><td class="best">2.413,79 inserts/s</td><td>2.221,66 inserts/s</td><td>2.145,92 inserts/s</td></tr>
+            <tr><td>Latência p50</td><td class="best">5,58 ms</td><td>6,25 ms</td><td>6,64 ms</td></tr>
+            <tr><td>Latência p99</td><td>376,55 ms</td><td class="best">238,74 ms</td><td>305,72 ms</td></tr>
+            <tr><td>RAM pico</td><td>89,65 MB</td><td>85,33 MB</td><td class="best">63,16 MB</td></tr>
+            <tr><td>CPU média / pico</td><td class="best">154% / 165%</td><td>157% / 169%</td><td>170% / 186%</td></tr>
+          </tbody>
+        </table>
+
+        <p>Stem fica <strong>+7,5%</strong> vs Flight e <strong>+16,5%</strong> vs Slim na leitura, com p50 menor e menos CPU — sem objetos PSR-7, sem stack de middleware, sem regex no router. Slim ganha RAM de pico na escrita; Flight ganha RAM de pico na leitura. O p99 dos inserts é lock do SQLite WAL com 4 workers, não o matcher.</p>
+        <p>O mesmo app Stem no <code>php -S</code>: 349 req/s na leitura. O worker FrankenPHP entrega ~21× isso, porque a árvore de rotas fica residente.</p>
+        <p>Roda + Sequel (Puma, mesmo Docker, mesmo wrk) ainda lidera vazão bruta (19.807 req/s na leitura) com cerca de 2× a RAM de pico do Stem (133 MB vs 66 MB). O argumento do Stem em PHP é a tabela Flight/Slim, não ganhar do MRI + <code>oj</code>.</p>
         <div class="prewrap" data-lang="BASH">
           <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copiar</button></div>
           <pre><code class="language-bash">php -S 127.0.0.1:8080 index.php
-wrk -t4 -c64 -d10s http://127.0.0.1:8080/</code></pre>
+wrk -t4 -c20 -d10s --latency http://127.0.0.1:8080/customers</code></pre>
         </div>
       </section>
 

@@ -136,6 +136,17 @@ send(bool $sendBody=true): void       // idempotent; 204/304 omit body
 
 Do not add an ORM to Stem. Copy `examples/app/`: PDO at boot (`AppFactory::make()`), `UserRepository` (SQL only), `routes/users.php` mounted with `$r->run()`. Load the row once inside `onInt`. Worker: `make()` outside the loop. SQLite by default; pass a MySQL/Postgres DSN to `Database::connect()`.
 
+## Performance (measured, not invented)
+
+Same PDO+SQLite `customers` API, `dunglas/frankenphp` 4 workers + JIT, `wrk -t4 -c20 -d10s`, Docker Desktop macOS (2026-09-09):
+
+GET /customers: Stem 7282.90 req/s p50 1.88 ms idle RAM 32.11 MB CPU 276% | Flight 6775.64 p50 2.16 | Slim 6250.74 p50 2.40 idle 44.81 MB.
+POST /customers: Stem 2413.79 inserts/s p50 5.58 ms | Flight 2221.66 | Slim 2145.92. Slim has the lowest write peak RAM (63 MB vs Stem 90 MB).
+Stem php -S: 349 req/s read (~21× less than the worker).
+Roda+Sequel Puma Docker (reference, not PHP): 19807 req/s read, 133 MB peak.
+
+Do not quote other numbers. Reproduce; do not invent.
+
 ## Isolation (workers)
 
 Reuse `App`. Never reuse `Request`. No static request fields. FrankenPHP:

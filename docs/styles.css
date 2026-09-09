@@ -383,7 +383,7 @@ table {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  overflow: hidden;
+  overflow: auto;
   font-size: 0.92rem;
 }
 
@@ -406,6 +406,16 @@ th {
 
 tr:last-child td {
   border-bottom: 0;
+}
+
+td.best {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.note p:last-child,
+.warn p:last-child {
+  margin-bottom: 0;
 }
 
 code,

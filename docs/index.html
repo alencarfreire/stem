@@ -600,10 +600,46 @@ $r-&gt;branches([
 ]);</code></pre>
         </div>
         <p>Inside <code>$makeUsers</code> the remaining path is already past <code>users</code> — do not wrap it in another <code>on('users')</code>. That is the difference from <code>run()</code>, which does not consume a key.</p>
+
+        <h3>Measured: Stem vs Flight vs Slim</h3>
+        <p>Same API (PDO + SQLite WAL, 10-column <code>customers</code>), same image (<code>dunglas/frankenphp</code>, PHP 8.5, JIT, 4 workers), same load: <code>wrk -t4 -c20 -d10s</code>. Docker Desktop on macOS. Green cells are best in that row. These are measured, not invented — reproduce with the harness, do not copy them as gospel.</p>
+
+        <p class="cap">Read — <code>GET /customers</code></p>
+        <table>
+          <thead>
+            <tr><th>Metric</th><th>StemPHP</th><th>FlightPHP 3</th><th>Slim 4</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Throughput</td><td class="best">7,282.90 req/s</td><td>6,775.64 req/s</td><td>6,250.74 req/s</td></tr>
+            <tr><td>Latency p50</td><td class="best">1.88 ms</td><td>2.16 ms</td><td>2.40 ms</td></tr>
+            <tr><td>Latency p99</td><td>59.44 ms</td><td>47.37 ms</td><td class="best">46.09 ms</td></tr>
+            <tr><td>RAM idle</td><td class="best">32.11 MB</td><td>33.88 MB</td><td>44.81 MB</td></tr>
+            <tr><td>RAM peak</td><td>66.46 MB</td><td class="best">51.62 MB</td><td>61.61 MB</td></tr>
+            <tr><td>CPU avg / peak</td><td class="best">276% / 281%</td><td>318% / 322%</td><td>348% / 354%</td></tr>
+          </tbody>
+        </table>
+
+        <p class="cap">Write — <code>POST /customers</code></p>
+        <table>
+          <thead>
+            <tr><th>Metric</th><th>StemPHP</th><th>FlightPHP 3</th><th>Slim 4</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Throughput</td><td class="best">2,413.79 inserts/s</td><td>2,221.66 inserts/s</td><td>2,145.92 inserts/s</td></tr>
+            <tr><td>Latency p50</td><td class="best">5.58 ms</td><td>6.25 ms</td><td>6.64 ms</td></tr>
+            <tr><td>Latency p99</td><td>376.55 ms</td><td class="best">238.74 ms</td><td>305.72 ms</td></tr>
+            <tr><td>RAM peak</td><td>89.65 MB</td><td>85.33 MB</td><td class="best">63.16 MB</td></tr>
+            <tr><td>CPU avg / peak</td><td class="best">154% / 165%</td><td>157% / 169%</td><td>170% / 186%</td></tr>
+          </tbody>
+        </table>
+
+        <p>Stem is <strong>+7.5%</strong> vs Flight and <strong>+16.5%</strong> vs Slim on reads, with a lower p50 and less CPU — no PSR-7 objects, no middleware stack, no regex router. Slim wins write peak RAM; Flight wins read peak RAM. The p99 on inserts is SQLite WAL under 4 workers, not the matcher.</p>
+        <p>Same Stem app on <code>php -S</code>: 349 req/s read. FrankenPHP worker is ~21× that, because the route tree stays in memory.</p>
+        <p>Roda + Sequel (Puma, same Docker, same wrk) still leads raw throughput (19,807 req/s read) at about 2× Stem’s peak RAM (133 MB vs 66 MB). Stem’s pitch in PHP is the Flight/Slim table, not beating MRI + <code>oj</code>.</p>
         <div class="prewrap" data-lang="BASH">
           <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
           <pre><code class="language-bash">php -S 127.0.0.1:8080 index.php
-wrk -t4 -c64 -d10s http://127.0.0.1:8080/</code></pre>
+wrk -t4 -c20 -d10s --latency http://127.0.0.1:8080/customers</code></pre>
         </div>
       </section>
 

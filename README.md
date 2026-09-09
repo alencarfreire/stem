@@ -132,11 +132,11 @@ Per-request work that is **not** on the matching path is deferred or skipped:
 - `onInt` uses `ctype_digit` + `(int)` (no `filter_var`).
 - Worker `gc_collect_cycles()` is off unless you pass `collectEvery`.
 
-Measure against your own `index.php`. Do not publish invented numbers:
+Measured on FrankenPHP worker (4 workers, JIT, SQLite WAL, `wrk -t4 -c20 -d10s`, Docker): Stem **7,283 req/s** read vs Flight **6,776** vs Slim **6,251**, lower p50 and less CPU. Tables and methodology: [docs #performance](https://alencarfreire.github.io/stem/#performance). Do not invent numbers; measure your own `index.php`.
 
 ```bash
 php -S 127.0.0.1:8080 index.php
-wrk -t4 -c64 -d10s http://127.0.0.1:8080/
+wrk -t4 -c20 -d10s --latency http://127.0.0.1:8080/customers
 ```
 
 ## Development
