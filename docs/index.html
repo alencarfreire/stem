@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StemPHP — executable routing tree</title>
+  <meta name="description" content="StemPHP is an ultralight executable routing-tree micro-framework for PHP 8.3+. Zero runtime dependencies. Runs on FPM, FrankenPHP, RoadRunner and Swoole.">
+  <link rel="canonical" href="https://alencarfreire.github.io/stem/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="./">StemPHP <small>docs</small></a>
+    <button class="menu-btn" id="menu" type="button" aria-label="Open menu">Menu</button>
+    <nav>
+      <a href="https://github.com/alencarfreire/stem">GitHub</a>
+      <a href="https://packagist.org/packages/alencarfreire/stem">Packagist</a>
+    </nav>
+  </header>
+
+  <div class="shell">
+    <aside class="sidebar" id="nav">
+      <h2>Start</h2>
+      <a href="#intro">Why a tree</a>
+      <a href="#install">Install</a>
+      <a href="#quickstart">Quick start</a>
+      <h2>Routing</h2>
+      <a href="#tree">How matching works</a>
+      <a href="#matchers">Matchers</a>
+      <a href="#callbacks">Callbacks &amp; <code>$r</code></a>
+      <a href="#playground">Path playground</a>
+      <h2>HTTP</h2>
+      <a href="#request">Request</a>
+      <a href="#response">Response</a>
+      <a href="#app">App lifecycle</a>
+      <h2>Run</h2>
+      <a href="#runtimes">FPM, workers, Swoole</a>
+      <a href="#isolation">Isolation</a>
+      <a href="#performance">Performance</a>
+      <h2>Reference</h2>
+      <a href="#api">API surface</a>
+    </aside>
+
+    <main class="content" id="main">
+      <header class="hero" id="intro">
+        <p class="kicker">PHP 8.3+ · MIT · zero runtime deps</p>
+        <h1>The path is consumed, not compiled.</h1>
+        <p class="lede">StemPHP is a Roda-style executable routing tree. The route closure runs on every request. Matchers eat URI segments as they go. There is no route table, no regex dump, no middleware stack in the core.</p>
+        <ul class="pills">
+          <li>PHP-FPM</li>
+          <li>php -S</li>
+          <li>FrankenPHP</li>
+          <li>RoadRunner</li>
+          <li>Swoole</li>
+        </ul>
+      </header>
+
+      <section id="install">
+        <h2>Install</h2>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copy</button>
+          <pre>composer require alencarfreire/stem</pre>
+        </div>
+        <p>Requires PHP 8.3+. FrankenPHP, RoadRunner and Swoole are optional. The core <code>require</code> is only <code>php</code>.</p>
+      </section>
+
+      <section id="quickstart">
+        <h2>Quick start</h2>
+        <p>Front controller for PHP-FPM or <code>php -S</code>:</p>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copy</button>
+          <pre>use Stem\App;
+use Stem\Request;
+
+$app = new App();
+
+$app-&gt;route(function (Request $r): void {
+    $r-&gt;root(fn () =&gt; $r-&gt;json(['message' =&gt; 'StemPHP API']));
+
+    $r-&gt;on('users', function () use ($r): void {
+        $r-&gt;get(fn () =&gt; $r-&gt;json([['id' =&gt; 1, 'name' =&gt; 'John']]));
+        $r-&gt;post(fn () =&gt; $r-&gt;json(['id' =&gt; 2], 201));
+
+        $r-&gt;onInt(function (int $id) use ($r): void {
+            $r-&gt;get(fn () =&gt; $r-&gt;json(['id' =&gt; $id, 'name' =&gt; 'John']));
+            $r-&gt;delete(fn () =&gt; $r-&gt;halt(204));
+        });
+    });
+});
+
+$app-&gt;run();</pre>
+        </div>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copy</button>
+          <pre>php -S localhost:8080 examples/basic/index.php</pre>
+        </div>
+      </section>
+
+      <section id="tree">
+        <h2>How matching works</h2>
+        <p>Roda does not compile routes into a trie at boot. StemPHP does the same: <code>App</code> stores one closure. <code>handle()</code> runs it. Each matcher is an <code>if</code> that may consume the next segment.</p>
+        <div class="tree" aria-hidden="true">
+          <div class="row"><span class="dim">GET /users/7</span></div>
+          <div class="row"><span class="dim">remaining</span> <span class="seg">/users/7</span></div>
+          <div class="row"><span class="dim">on('users')</span> <span class="seg">consume users</span> <span class="dim">→ /7</span></div>
+          <div class="row"><span class="dim">get() atEnd?</span> <span class="dim">no — skip</span></div>
+          <div class="row"><span class="dim">onInt()</span> <span class="seg">capture 7</span> <span class="dim">→ empty</span></div>
+          <div class="row"><span class="dim">get()</span> <span class="seg">terminal leaf</span> <span class="dim">→ json</span></div>
+        </div>
+        <ul>
+          <li>A matcher that hits runs its callback, then sets <code>$done</code>. Siblings at that level do not run.</li>
+          <li>If nothing in the whole tree hits, <code>handle()</code> returns <strong>404</strong>.</li>
+          <li>If a branch hits (<code>on</code>/<code>onInt</code>) but no leaf writes a body, you get <strong>200 empty</strong> — the branch already consumed the path. There is no backtracking.</li>
+        </ul>
+      </section>
+
+      <section id="matchers">
+        <h2>Matchers</h2>
+        <table>
+          <thead>
+            <tr><th>Call</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>$r-&gt;on('users', $cb)</code></td><td>Prefix. Consumes <code>users</code>, enters the branch.</td></tr>
+            <tr><td><code>$r-&gt;is('users', $cb)</code></td><td>Exact remaining path <code>/users</code>.</td></tr>
+            <tr><td><code>$r-&gt;is($cb)</code></td><td>Remaining path is empty.</td></tr>
+            <tr><td><code>$r-&gt;get($cb)</code> / <code>post</code> / <code>put</code> / <code>delete</code> / <code>patch</code></td><td>HTTP method <em>and</em> remaining path empty (terminal).</td></tr>
+            <tr><td><code>$r-&gt;get('about', $cb)</code></td><td>Method + exact remaining <code>/about</code>.</td></tr>
+            <tr><td><code>$r-&gt;root($cb)</code></td><td>Remaining is <code>/</code> or empty. Any method.</td></tr>
+            <tr><td><code>$r-&gt;onInt($cb)</code></td><td>Next segment is an integer: <code>0</code>, <code>42</code>. Not <code>01</code>, <code>-1</code>, overflow.</td></tr>
+            <tr><td><code>$r-&gt;onParam($cb)</code></td><td>Next non-empty segment as <code>string</code>.</td></tr>
+            <tr><td><code>$r-&gt;json($data, $status = 200)</code></td><td>JSON body + content type. Sets <code>$done</code>. Does not throw.</td></tr>
+            <tr><td><code>$r-&gt;html($html, $status = 200)</code></td><td>HTML body. Sets <code>$done</code>. Does not throw.</td></tr>
+            <tr><td><code>$r-&gt;halt($status, $body, $headers)</code></td><td>Early exit (<code>never</code>). Throws internal <code>HaltException</code>.</td></tr>
+          </tbody>
+        </table>
+        <p class="note"><strong>Deviation from Roda:</strong> <code>get()</code> / <code>post()</code> without a segment are terminal (method + empty remaining). Roda’s bare <code>r.get</code> matches GET even with leftover path — easy to swallow <code>/users/1/posts</code>. Put nested <code>on()</code> branches <em>above</em> the leaf <code>get()</code>.</p>
+      </section>
+
+      <section id="callbacks">
+        <h2>Callbacks and <code>$r</code></h2>
+        <p>Matchers do not inject <code>Request</code> as an argument. That keeps Reflection off the hot path. Capture <code>$r</code> from the <code>route()</code> closure with <code>use ($r)</code> or arrows:</p>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copy</button>
+          <pre>$r-&gt;on('users', function () use ($r): void {
+    $r-&gt;onInt(fn (int $id) =&gt; $r-&gt;json(['id' =&gt; $id]));
+});</pre>
+        </div>
+        <p>Only <code>onInt</code> / <code>onParam</code> pass extra arguments (the capture). <code>function (Request $r)</code> as a matcher parameter will error.</p>
+      </section>
+
+      <section id="playground">
+        <h2>Path playground</h2>
+        <p>Same tree as the quick start. Click a request and watch consume / miss / leaf.</p>
+        <div class="playground">
+          <div class="paths">
+            <button type="button" data-play="GET /" aria-pressed="true">GET /</button>
+            <button type="button" data-play="GET /users">GET /users</button>
+            <button type="button" data-play="POST /users">POST /users</button>
+            <button type="button" data-play="GET /users/7">GET /users/7</button>
+            <button type="button" data-play="DELETE /users/7">DELETE /users/7</button>
+            <button type="button" data-play="GET /users/abc">GET /users/abc</button>
+            <button type="button" data-play="GET /nope">GET /nope</button>
+          </div>
+          <pre class="log" id="play-log"></pre>
+        </div>
+      </section>
+
+      <section id="request">
+        <h2>Request</h2>
+        <p><code>Request</code> is both the HTTP message and the routing context (<code>$r</code>).</p>
+        <table>
+          <thead>
+            <tr><th>Method</th><th>Role</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>Request::fromGlobals()</code></td><td>FPM / worker handler. Call <em>inside</em> the per-request loop.</td></tr>
+            <tr><td><code>Request::create($method, $path, $headers, $query, $body)</code></td><td>Tests, RoadRunner, Swoole.</td></tr>
+            <tr><td><code>method()</code> / <code>path()</code> / <code>remaining()</code></td><td>Verb, normalized path, unconsumed suffix.</td></tr>
+            <tr><td><code>header($name)</code> / <code>headers()</code></td><td>Lazy: <code>$_SERVER</code> is scanned only on first access.</td></tr>
+            <tr><td><code>query()</code> / <code>rawBody()</code></td><td>Query string and raw body. GET/HEAD skip <code>php://input</code>.</td></tr>
+            <tr><td><code>response()</code></td><td>Allocates <code>Response</code> on first write.</td></tr>
+          </tbody>
+        </table>
+        <p>Paths are normalized: trailing slash stripped (except <code>/</code>), <code>//</code> collapsed, query/fragment dropped, percent-decoding per segment.</p>
+      </section>
+
+      <section id="response">
+        <h2>Response</h2>
+        <p>Mutable and request-scoped. <code>json()</code> / <code>html()</code> on <code>Request</code> write here and set <code>$done</code>.</p>
+        <table>
+          <thead>
+            <tr><th>Method</th><th>Role</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>status()</code> / <code>headers()</code> / <code>body()</code></td><td>Read the current message.</td></tr>
+            <tr><td><code>withStatus</code> / <code>withHeader</code> / <code>withBody</code></td><td>Fluent mutators. CR/LF in headers is rejected.</td></tr>
+            <tr><td><code>writeJson</code> / <code>writeHtml</code></td><td>Body + content type. JSON uses <code>JSON_THROW_ON_ERROR</code>.</td></tr>
+            <tr><td><code>send()</code></td><td><code>http_response_code</code>, headers, echo. Idempotent.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="app">
+        <h2>App lifecycle</h2>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copy</button>
+          <pre>$app-&gt;route(function (Request $r): void { /* once */ });
+$response = $app-&gt;handle($request);   // per request
+$app-&gt;run();                          // fromGlobals + handle + send</pre>
+        </div>
+        <ul>
+          <li><code>route()</code> may be called once. A second call throws <code>LogicException</code>.</li>
+          <li><code>handle()</code> catches only <code>HaltException</code>. Other throwables bubble to the SAPI.</li>
+          <li>Happy path (<code>json</code>/<code>html</code>) does not throw.</li>
+        </ul>
+      </section>
+
+      <section id="runtimes">
+        <h2>Runtimes</h2>
+        <div class="grid-2">
+          <article class="card">
+            <h3>PHP-FPM / php -S</h3>
+            <p>Default. Point the document root at a script that calls <code>$app-&gt;run()</code>. See <code>examples/basic/index.php</code>.</p>
+          </article>
+          <article class="card">
+            <h3>FrankenPHP worker</h3>
+            <p>Optional. Boot <code>$app</code> once, then <code>FrankenPhpWorker::run($app)</code>. <code>fromGlobals()</code> stays inside the loop.</p>
+          </article>
+          <article class="card">
+            <h3>RoadRunner</h3>
+            <p>No Composer require. Map the PSR-7 request to <code>Request::create</code>, then write status/headers/body. See <code>examples/roadrunner/</code>.</p>
+          </article>
+          <article class="card">
+            <h3>Swoole</h3>
+            <p>Same contract: <code>handle()</code> is the kernel. Example in <code>examples/swoole/server.php</code>.</p>
+          </article>
+        </div>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copy</button>
+          <pre>use Stem\Integrations\FrankenPhpWorker;
+
+FrankenPhpWorker::run(
+    $app,
+    maxRequests: (int) ($_SERVER['MAX_REQUESTS'] ?? 0),
+    collectEvery: 0, // gc_collect_cycles off; set 128 if an extension leaks
+);</pre>
+        </div>
+      </section>
+
+      <section id="isolation">
+        <h2>Isolation</h2>
+        <p>Long-lived workers reuse the <code>App</code> instance. They must not reuse a <code>Request</code>.</p>
+        <ul>
+          <li>No static request state on <code>App</code>, <code>Request</code>, <code>Response</code>, or <code>Router</code>.</li>
+          <li><code>handle()</code> always receives a new <code>Request</code>.</li>
+          <li><code>Response</code> is created on first write, not shared across requests.</li>
+          <li><code>Request::fromGlobals()</code> belongs in the handler, never at worker boot.</li>
+        </ul>
+      </section>
+
+      <section id="performance">
+        <h2>Performance</h2>
+        <p>Routing cost is <code>O(path depth × siblings at that level)</code>, not <code>O(total routes)</code>. This is Roda’s model, not FastRoute’s compiled matcher.</p>
+        <ul>
+          <li>No regex, no Reflection, no exception on <code>json()</code> / <code>html()</code>.</li>
+          <li>Path parse uses <code>strpos</code> / <code>explode</code>. <code>rawurldecode</code> only if the URI contains <code>%</code>.</li>
+          <li><code>onInt</code> uses <code>ctype_digit</code> + <code>(int)</code>.</li>
+          <li>GET/HEAD skip <code>php://input</code>. Headers from <code>$_SERVER</code> are lazy.</li>
+        </ul>
+        <p>Measure on your hardware. Do not publish invented req/s:</p>
+        <div class="prewrap">
+          <button class="copy" type="button" data-copy>copy</button>
+          <pre>php -S 127.0.0.1:8080 examples/bench/hello.php
+wrk -t4 -c64 -d10s http://127.0.0.1:8080/</pre>
+        </div>
+      </section>
+
+      <section id="api">
+        <h2>API surface</h2>
+        <table>
+          <thead>
+            <tr><th>Class</th><th>Role</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>Stem\App</code></td><td>Kernel. <code>route</code>, <code>handle</code>, <code>run</code>.</td></tr>
+            <tr><td><code>Stem\Request</code></td><td>HTTP + routing context.</td></tr>
+            <tr><td><code>Stem\Response</code></td><td>Status, headers, body, <code>send()</code>.</td></tr>
+            <tr><td><code>Stem\Router</code></td><td>Internal path cursor (<code>@internal</code>).</td></tr>
+            <tr><td><code>Stem\Exceptions\HaltException</code></td><td>Only <code>halt()</code>.</td></tr>
+            <tr><td><code>Stem\Integrations\FrankenPhpWorker</code></td><td>Optional worker loop.</td></tr>
+          </tbody>
+        </table>
+        <p>PHPUnit 8.3/8.4 on CI. <code>composer test</code> / <code>composer analyze</code> (PHPStan 9).</p>
+      </section>
+
+      <footer>
+        StemPHP is MIT licensed. Inspired by <a href="https://roda.jeremyevans.net/">Roda</a> (Jeremy Evans).
+        Source: <a href="https://github.com/alencarfreire/stem">alencarfreire/stem</a>.
+      </footer>
+    </main>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>

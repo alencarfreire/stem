@@ -4,8 +4,11 @@
 [![Packagist](https://img.shields.io/packagist/v/alencarfreire/stem.svg)](https://packagist.org/packages/alencarfreire/stem)
 [![PHP](https://img.shields.io/badge/php-%3E%3D8.3-777bb4.svg)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-d4f25a?labelColor=0c0d0b)](https://alencarfreire.github.io/stem/)
 
 Ultralight **executable routing-tree** micro-framework for PHP 8.3+. Inspired by [Roda](https://roda.jeremyevans.net/) (Ruby). Zero runtime dependencies.
+
+**Docs:** [alencarfreire.github.io/stem](https://alencarfreire.github.io/stem/)
 
 Runs on **PHP-FPM**, `php -S`, Apache, FrankenPHP (with or without worker mode), RoadRunner, and Swoole. FrankenPHP is an optional fast path, not a requirement.
 
