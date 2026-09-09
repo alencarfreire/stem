@@ -45,7 +45,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Stem\\Tests\\": "tests/"
+            "Stem\\Tests\\": "tests/",
+            "StemExample\\": "examples/app/"
         }
     },
     "scripts": {

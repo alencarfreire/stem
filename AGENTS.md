@@ -44,6 +44,7 @@ Request::create/fromGlobals → App::handle → route closure → matchers → R
 | `tests/Unit/RequestPathTest.php` | Normalization, `fromGlobals`, `onInt` rules |
 | `tests/Unit/ResponseTest.php` | JSON/HTML, header injection |
 | `tests/Integration/LifecycleTest.php` | No leak across `handle()` on the same `App` |
+| `examples/app/` | Indicated architecture: PDO + repository + `routes/*.php`. Do **not** move PDO into `src/`. |
 | `examples/basic/` | Default FPM / `php -S` |
 | `examples/frankenphp/` | Worker |
 | `examples/roadrunner/` `examples/swoole/` | Adapters, **not** required packages |

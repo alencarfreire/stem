@@ -10,6 +10,8 @@ Ultralight **executable routing-tree** micro-framework for PHP 8.3+. Inspired by
 
 **Docs:** [English](https://alencarfreire.github.io/stem/) · [Português (Brasil)](https://alencarfreire.github.io/stem/pt/) · [llms.txt](https://alencarfreire.github.io/stem/llms.txt)
 
+Indicated app layout (PDO, not an ORM): [`examples/app/`](examples/app/) — [Architecture](https://alencarfreire.github.io/stem/#architecture).
+
 Runs on **PHP-FPM**, `php -S`, Apache, FrankenPHP (with or without worker mode), RoadRunner, and Swoole. FrankenPHP is an optional fast path, not a requirement.
 
 ```php

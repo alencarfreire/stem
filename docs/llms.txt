@@ -131,6 +131,10 @@ writeJson / writeHtml
 send(bool $sendBody=true): void       // idempotent; 204/304 omit body
 ```
 
+## Indicated app architecture
+
+Do not add an ORM to Stem. Copy `examples/app/`: PDO at boot (`AppFactory::make()`), `UserRepository` (SQL only), `routes/users.php` mounted with `$r->run()`. Load the row once inside `onInt`. Worker: `make()` outside the loop. SQLite by default; pass a MySQL/Postgres DSN to `Database::connect()`.
+
 ## Isolation (workers)
 
 Reuse `App`. Never reuse `Request`. No static request fields. FrankenPHP:

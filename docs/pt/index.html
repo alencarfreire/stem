@@ -55,6 +55,7 @@
       <a href="#install">Instalar</a>
       <a href="#quickstart">Início rápido</a>
       <a href="#try">Experimente</a>
+      <a href="#architecture">Arquitetura (PDO)</a>
       <h2>Receitas</h2>
       <a href="#json-post">POST JSON</a>
       <a href="#auth">Bearer token</a>
@@ -234,6 +235,71 @@ curl -s localhost:8080/nope
 curl -s -o /dev/null -w '%{http_code}\n' -X PUT localhost:8080/users
 # 405  Allow: GET, HEAD, POST</code></pre>
         </div>
+      </section>
+
+      <section id="architecture">
+        <h2>Arquitetura (PDO)</h2>
+        <p>O Stem não traz ORM. O layout indicado é <strong>PDO + repositório + arquivos de rota</strong>. Conexão no boot, SQL fora do HTTP, carrega a linha uma vez no ramo. Cópia rodável: <code>examples/app/</code> no repositório.</p>
+        <div class="prewrap" data-lang="TEXT">
+          <div class="prewrap-bar"><span>TREE</span><button class="copy" type="button" data-copy>Copiar</button></div>
+          <pre><code>examples/app/
+  index.php                 # router do php -S
+  worker.php                # FrankenPHP: AppFactory::make() fora do loop
+  AppFactory.php            # PDO + App + $r-&gt;run(...)
+  Database.php              # sqlite em arquivo, ou qualquer DSN
+  schema.sql
+  Repository/UserRepository.php
+  routes/users.php          # Closure(Request): void
+  var/app.sqlite            # criado em runtime</code></pre>
+        </div>
+        <p>A partir de um clone deste repositório:</p>
+        <div class="prewrap" data-lang="BASH">
+          <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copiar</button></div>
+          <pre><code class="language-bash">php -S localhost:8080 examples/app/index.php
+curl -s localhost:8080/users
+curl -s -X POST localhost:8080/users \
+  -H 'Content-Type: application/json' -d '{"name":"Grace"}'</code></pre>
+        </div>
+        <p>No seu projeto, copie a pasta, aponte o <code>vendor/autoload.php</code> para a raiz e use o mesmo <code>AppFactory::make()</code> no FPM e no worker.</p>
+        <p class="cap">Boot — PDO uma vez</p>
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copiar</button></div>
+          <pre><code class="language-php">$pdo ??= Database::connect();
+$users = new UserRepository($pdo);
+$makeUsers = require __DIR__ . '/routes/users.php';
+$app-&gt;route(function (Request $r) use ($makeUsers, $users): void {
+    $r-&gt;run($makeUsers($users));
+});</code></pre>
+        </div>
+        <p class="cap">Repositório — sem Request</p>
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copiar</button></div>
+          <pre><code class="language-php">public function find(int $id): ?array
+{
+    $st = $this-&gt;pdo-&gt;prepare('SELECT id, name FROM users WHERE id = :id');
+    $st-&gt;execute(['id' =&gt; $id]);
+    $row = $st-&gt;fetch();
+
+    return $row === false ? null : /* map */;
+}</code></pre>
+        </div>
+        <p class="cap">Rota — carrega uma vez no ramo</p>
+        <div class="prewrap" data-lang="PHP">
+          <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copiar</button></div>
+          <pre><code class="language-php">$r-&gt;onInt(function (int $id) use ($r, $users): void {
+    $user = $users-&gt;find($id);
+    if ($user === null) {
+        $r-&gt;json(['error' =&gt; 'not_found'], 404);
+        return;
+    }
+    $r-&gt;get(fn () =&gt; $r-&gt;json($user));
+    $r-&gt;delete(function () use ($r, $users, $id): void {
+        $users-&gt;delete($id);
+        $r-&gt;noContent();
+    });
+});</code></pre>
+        </div>
+        <p class="note"><strong>Worker:</strong> <code>AppFactory::make()</code> (e o PDO) ficam <em>fora</em> de <code>frankenphp_handle_request</code>. Veja <code>examples/app/worker.php</code>. Troque o SQLite por <code>Database::connect('mysql:host=127.0.0.1;dbname=app')</code> — o SQL do repositório é padrão.</p>
       </section>
 
       <section id="json-post">
