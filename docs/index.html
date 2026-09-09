@@ -96,10 +96,12 @@
 
       <section id="quickstart">
         <h2>Quick start</h2>
-        <p>Front controller for PHP-FPM or <code>php -S</code>:</p>
+        <p>Create <code>index.php</code> in your project root (next to <code>vendor/</code>):</p>
         <div class="prewrap" data-lang="PHP">
           <div class="prewrap-bar"><span>PHP</span><button class="copy" type="button" data-copy>Copy</button></div>
-          <pre><code class="language-php">use Stem\App;
+          <pre><code class="language-php">require __DIR__ . '/vendor/autoload.php';
+
+use Stem\App;
 use Stem\Request;
 
 $app = new App();
@@ -120,9 +122,10 @@ $app-&gt;route(function (Request $r): void {
 
 $app-&gt;run();</code></pre>
         </div>
+        <p>Start the built-in server with that file as the router (so <code>/users</code> is not looked up as a path on disk):</p>
         <div class="prewrap" data-lang="BASH">
           <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
-          <pre><code class="language-bash">php -S localhost:8080 examples/basic/index.php</code></pre>
+          <pre><code class="language-bash">php -S localhost:8080 index.php</code></pre>
         </div>
       </section>
 
@@ -251,7 +254,7 @@ $app-&gt;run();                          // fromGlobals + handle + send</code></
         <div class="grid-2">
           <article class="card">
             <h3>PHP-FPM / php -S</h3>
-            <p>Default. Point the document root at a script that calls <code>$app-&gt;run()</code>. See <code>examples/basic/index.php</code>.</p>
+            <p>Default. Serve the same <code>index.php</code> as the front controller (<code>php -S localhost:8080 index.php</code>, or point PHP-FPM/Apache at that file).</p>
           </article>
           <article class="card">
             <h3>FrankenPHP worker</h3>
@@ -298,10 +301,10 @@ FrankenPhpWorker::run(
           <li><code>onInt</code> uses <code>ctype_digit</code> + <code>(int)</code>.</li>
           <li>GET/HEAD skip <code>php://input</code>. Headers from <code>$_SERVER</code> are lazy.</li>
         </ul>
-        <p>Measure on your hardware. Do not publish invented req/s:</p>
+        <p>Measure on your hardware against your own <code>index.php</code>. Do not publish invented req/s:</p>
         <div class="prewrap" data-lang="BASH">
           <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
-          <pre><code class="language-bash">php -S 127.0.0.1:8080 examples/bench/hello.php
+          <pre><code class="language-bash">php -S 127.0.0.1:8080 index.php
 wrk -t4 -c64 -d10s http://127.0.0.1:8080/</code></pre>
         </div>
       </section>

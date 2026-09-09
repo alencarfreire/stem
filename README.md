@@ -13,6 +13,8 @@ Ultralight **executable routing-tree** micro-framework for PHP 8.3+. Inspired by
 Runs on **PHP-FPM**, `php -S`, Apache, FrankenPHP (with or without worker mode), RoadRunner, and Swoole. FrankenPHP is an optional fast path, not a requirement.
 
 ```php
+require __DIR__ . '/vendor/autoload.php';
+
 use Stem\App;
 use Stem\Request;
 
@@ -35,7 +37,7 @@ $app->run();
 
 ```bash
 composer require alencarfreire/stem
-php -S localhost:8080 examples/basic/index.php
+php -S localhost:8080 index.php
 ```
 
 ## Routing tree
@@ -72,7 +74,7 @@ $response = $app->handle(Request::create('GET', '/users/1'));
 
 ### PHP-FPM / `php -S` (default)
 
-Point the document root at a front controller that calls `$app->run()`. See `examples/basic/index.php`.
+Save the app as `index.php` next to `vendor/` and serve it as the front controller (`php -S localhost:8080 index.php`, or point PHP-FPM/Apache at that file).
 
 ### FrankenPHP worker mode (optional)
 
@@ -102,10 +104,10 @@ Per-request work that is **not** on the matching path is deferred or skipped:
 - `onInt` uses `ctype_digit` + `(int)` (no `filter_var`).
 - Worker `gc_collect_cycles()` is off unless you pass `collectEvery`.
 
-Measure locally; do not publish invented numbers:
+Measure against your own `index.php`. Do not publish invented numbers:
 
 ```bash
-php -S 127.0.0.1:8080 examples/bench/hello.php
+php -S 127.0.0.1:8080 index.php
 wrk -t4 -c64 -d10s http://127.0.0.1:8080/
 ```
 

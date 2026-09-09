@@ -97,7 +97,7 @@ Tests must not hit the network. Use `Request::create` + `App::handle`. Do not ca
 
 When adding a matcher or changing consume rules, add cases to `RoutingTreeTest` **and** a sibling-skip / `$done` case.
 
-Canonical user example lives in `examples/basic/index.php`. Keep it valid PHP 8.3.
+In-repo fixture: `examples/basic/index.php`. Consumer docs must show `index.php` next to `vendor/` and `php -S localhost:8080 index.php`, never `examples/basic/`.
 
 ## Docs site
 
