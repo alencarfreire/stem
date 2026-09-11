@@ -22,6 +22,7 @@ final class Request
      * @param array<string, string> $headers
      * @param array<string, mixed> $query
      * @param array<string, mixed> $post
+     * @param array<string, mixed> $files
      */
     public function __construct(
         private readonly string $method,
@@ -33,6 +34,7 @@ final class Request
         private readonly string $rawBody = '',
         private bool $lazyHeaders = false,
         private readonly array $post = [],
+        private readonly array $files = [],
     ) {
     }
 
@@ -75,6 +77,20 @@ final class Request
         $query = $_GET;
         /** @var array<string, mixed> $post */
         $post = $_POST;
+        /** @var array<string, mixed> $files */
+        $files = $_FILES;
+
+        if ($method === 'POST') {
+            $override = $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] ?? null;
+            if (!is_string($override) || $override === '') {
+                $fromPost = $post['_method'] ?? null;
+                $override = is_string($fromPost) ? $fromPost : '';
+            }
+            $override = strtoupper($override);
+            if ($override === 'PUT' || $override === 'PATCH' || $override === 'DELETE') {
+                $method = $override;
+            }
+        }
 
         $router = Router::fromPath($uri);
 
@@ -88,6 +104,7 @@ final class Request
             $body,
             true,
             $post,
+            $files,
         );
     }
 
@@ -95,6 +112,7 @@ final class Request
      * @param array<string, string> $headers
      * @param array<string, mixed> $query
      * @param array<string, mixed> $post
+     * @param array<string, mixed> $files
      */
     public static function create(
         string $method,
@@ -103,6 +121,7 @@ final class Request
         array $query = [],
         string $body = '',
         array $post = [],
+        array $files = [],
     ): self {
         if ($method !== 'GET' && $method !== 'POST' && $method !== 'HEAD' && $method !== 'PUT' && $method !== 'PATCH' && $method !== 'DELETE' && $method !== 'OPTIONS') {
             $method = strtoupper($method);
@@ -128,6 +147,7 @@ final class Request
             $body,
             false,
             $post,
+            $files,
         );
     }
 
@@ -208,6 +228,14 @@ final class Request
     public function formParam(string $key, mixed $default = null): mixed
     {
         return $this->post[$key] ?? $default;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function files(): array
+    {
+        return $this->files;
     }
 
     public function rawBody(): string
@@ -602,6 +630,30 @@ final class Request
         }
 
         $this->response()->withStatus(204)->withBody('');
+        $this->written = true;
+    }
+
+    public function download(string $path, ?string $filename = null): void
+    {
+        if ($this->written) {
+            return;
+        }
+
+        if (!is_file($path) || !is_readable($path)) {
+            $this->halt(404, 'Not Found', ['Content-Type' => 'text/plain; charset=utf-8']);
+        }
+
+        $filename ??= basename($path);
+        $filename = str_replace(['"', "\r", "\n", '\\'], '', $filename);
+        $mime = function_exists('mime_content_type') ? mime_content_type($path) : false;
+        $type = is_string($mime) && $mime !== '' ? $mime : 'application/octet-stream';
+        $contents = file_get_contents($path);
+
+        $this->response()
+            ->withStatus(200)
+            ->withHeader('Content-Type', $type)
+            ->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->withBody($contents === false ? '' : $contents);
         $this->written = true;
     }
 

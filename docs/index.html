@@ -82,7 +82,7 @@
 
     <main class="content" id="main">
       <header class="hero" id="intro">
-        <p class="kicker">alencarfreire/stem · v0.4.0 · PHP 8.3+</p>
+        <p class="kicker">alencarfreire/stem · v0.5.0 · PHP 8.3+</p>
         <h1>A JSON API in one file.</h1>
         <p class="lede">StemPHP is a Roda-style routing tree: the route closure runs on every request and consumes the URI segment by segment. No route table, no regex dump, no middleware stack. Copy the example, hit it with curl.</p>
         <ul class="pills">
@@ -98,7 +98,7 @@
         <h2>Install</h2>
         <div class="prewrap" data-lang="BASH">
           <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copy</button></div>
-          <pre><code class="language-bash">composer require alencarfreire/stem:^0.4</code></pre>
+          <pre><code class="language-bash">composer require alencarfreire/stem:^0.5</code></pre>
         </div>
         <p>PHP 8.3+. Zero runtime dependencies. FrankenPHP, RoadRunner and Swoole are optional.</p>
       </section>
@@ -466,6 +466,9 @@ assert($response-&gt;body() === '{"id":3,"name":"Grace"}');</code></pre>
             <tr><td><code>$r-&gt;onUuid($cb)</code> / <code>isUuid($cb)</code></td><td>UUID <code>8-4-4-4-12</code> (hex, no regex). Prefix vs exact remaining.</td></tr>
             <tr><td><code>$r-&gt;when($pred, $cb)</code></td><td>If <code>$pred()</code> is <code>true</code>, run <code>$cb</code> and seal. False is a no-op.</td></tr>
             <tr><td><code>$r-&gt;ctx($key)</code> / <code>$r-&gt;ctx($key, $value)</code></td><td>Bag for this request only. Load once on the branch, read in the leaves.</td></tr>
+            <tr><td><code>$r-&gt;files()</code></td><td>Upload metadata (<code>$_FILES</code>). New copy each <code>fromGlobals()</code>.</td></tr>
+            <tr><td><code>$r-&gt;download($path, $name)</code></td><td>File attachment. Missing file → 404.</td></tr>
+            <tr><td><code>Cors::allow($r, origins: [...])</code></td><td>Call on a branch. OPTIONS becomes 204.</td></tr>
             <tr><td><code>$r-&gt;json($data, $status = 200)</code></td><td>JSON body. Does not throw.</td></tr>
             <tr><td><code>$r-&gt;html($html, $status = 200)</code></td><td>HTML body. Does not throw.</td></tr>
             <tr><td><code>$r-&gt;halt($status, $body, $headers)</code></td><td>Early exit (<code>never</code>).</td></tr>

@@ -82,7 +82,7 @@
 
     <main class="content" id="main">
       <header class="hero" id="intro">
-        <p class="kicker">alencarfreire/stem · v0.4.0 · PHP 8.3+</p>
+        <p class="kicker">alencarfreire/stem · v0.5.0 · PHP 8.3+</p>
         <h1>Uma API JSON num arquivo só.</h1>
         <p class="lede">StemPHP é uma árvore de rotas no estilo Roda: o closure roda a cada request e consome a URI segmento a segmento. Sem tabela de rotas, sem dump de regex, sem stack de middleware. Copia o exemplo e bate com curl.</p>
         <ul class="pills">
@@ -98,7 +98,7 @@
         <h2>Instalar</h2>
         <div class="prewrap" data-lang="BASH">
           <div class="prewrap-bar"><span>BASH</span><button class="copy" type="button" data-copy>Copiar</button></div>
-          <pre><code class="language-bash">composer require alencarfreire/stem:^0.4</code></pre>
+          <pre><code class="language-bash">composer require alencarfreire/stem:^0.5</code></pre>
         </div>
         <p>PHP 8.3+. Zero dependências de runtime. FrankenPHP, RoadRunner e Swoole são opcionais.</p>
       </section>
@@ -466,6 +466,9 @@ assert($response-&gt;body() === '{"id":3,"name":"Grace"}');</code></pre>
             <tr><td><code>$r-&gt;onUuid($cb)</code> / <code>isUuid($cb)</code></td><td>UUID <code>8-4-4-4-12</code> (hex, sem regex). Prefixo vs restante exato.</td></tr>
             <tr><td><code>$r-&gt;when($pred, $cb)</code></td><td>Se <code>$pred()</code> é <code>true</code>, roda <code>$cb</code> e sela. False é no-op.</td></tr>
             <tr><td><code>$r-&gt;ctx($key)</code> / <code>$r-&gt;ctx($key, $value)</code></td><td>Bag só desta request. Carrega no ramo, lê nas folhas.</td></tr>
+            <tr><td><code>$r-&gt;files()</code></td><td>Upload (<code>$_FILES</code>). Cópia nova a cada <code>fromGlobals()</code>.</td></tr>
+            <tr><td><code>$r-&gt;download($path, $name)</code></td><td>Anexo. Arquivo inexistente → 404.</td></tr>
+            <tr><td><code>Cors::allow($r, origins: [...])</code></td><td>Chame no ramo. OPTIONS vira 204.</td></tr>
             <tr><td><code>$r-&gt;json($data, $status = 200)</code></td><td>Body JSON. Não lança.</td></tr>
             <tr><td><code>$r-&gt;html($html, $status = 200)</code></td><td>Body HTML. Não lança.</td></tr>
             <tr><td><code>$r-&gt;halt($status, $body, $headers)</code></td><td>Saída antecipada (<code>never</code>).</td></tr>

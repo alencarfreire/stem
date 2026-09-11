@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.5.0 — 2026-09-09
+
+### Added
+- `$r->files()` — `$_FILES` copy per request (worker-safe)
+- `$r->download($path, $filename)` — attachment response
+- `Stem\Integrations\Cors::allow()` — call on a branch; OPTIONS → 204
+- `fromGlobals()` method override: `X-HTTP-Method-Override` and POST `_method`
+
 ## 0.4.0 — 2026-09-09
 
 ### Added

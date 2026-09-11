@@ -1,6 +1,6 @@
 # StemPHP
 
-> Ultralight executable routing-tree micro-framework for PHP 8.3+. Packagist: alencarfreire/stem. Namespace: Stem\. Zero runtime dependencies. Current: v0.4.0.
+> Ultralight executable routing-tree micro-framework for PHP 8.3+. Packagist: alencarfreire/stem. Namespace: Stem\. Zero runtime dependencies. Current: v0.5.0.
 
 Human docs: https://alencarfreire.github.io/stem/ (EN) · https://alencarfreire.github.io/stem/pt/ (pt-BR)
 Source: https://github.com/alencarfreire/stem
@@ -11,7 +11,7 @@ This file is for AI agents **using or extending** StemPHP. Prefer it over scrapi
 ## Install
 
 ```bash
-composer require alencarfreire/stem:^0.4
+composer require alencarfreire/stem:^0.5
 ```
 
 PHP >= 8.3. Optional: ext-frankenphp, ext-swoole, spiral/roadrunner-http (examples only).
@@ -81,6 +81,9 @@ Right: `$r->on('users', function () use ($r) { ... })`
 | `$r->onUuid($cb)` / `$r->isUuid($cb)` | UUID segment (`8-4-4-4-12`, no regex). Prefix vs exact. |
 | `$r->when($pred, $cb)` | `$pred()` === true then `$cb()` and seal. |
 | `$r->ctx($key)` / `$r->ctx($key, $value)` | Request-scoped bag. Does not leak across `handle()`. |
+| `$r->files()` | Copied `$_FILES`. Empty unless `fromGlobals`/`create(..., files:)`. |
+| `$r->download($path, $name)` | Attachment; 404 if not a readable file. |
+| `Cors::allow($r, origins: [...])` | Branch-level CORS. OPTIONS → 204. |
 | `$r->json($data, $status=200)` | write JSON, set done, no throw |
 | `$r->html($html, $status=200)` | write HTML, set done, no throw |
 | `$r->halt($status, $body='', $headers=[])` | write + throw HaltException (`never`) |

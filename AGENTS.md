@@ -2,7 +2,7 @@
 
 This file is the source of truth for **changing this repository**. Human docs: `docs/index.html` (EN), `docs/pt/index.html` (pt-BR). Consumer-facing machine spec: `docs/llms.txt`.
 
-Package: `alencarfreire/stem` · namespace `Stem\` · type `library` · PHP `>=8.3` · MIT · current tag `v0.4.0` (0.x: public API still treated as stable unless the user asks for a break).
+Package: `alencarfreire/stem` · namespace `Stem\` · type `library` · PHP `>=8.3` · MIT · current tag `v0.5.0` (0.x: public API still treated as stable unless the user asks for a break).
 
 After any behavioral change: `composer test` and `composer analyze` must pass. If you change routing semantics, examples, or public signatures, update **both** EN and pt-BR docs **and** `docs/llms.txt`.
 
@@ -40,6 +40,7 @@ Request::create/fromGlobals → App::handle → route closure → matchers → R
 | `src/Response.php` | Mutable status/headers/body; lazy-allocated from Request |
 | `src/Exceptions/HaltException.php` | Only `Request::halt()` |
 | `src/Integrations/FrankenPhpWorker.php` | Optional worker loop; `function_exists` guard |
+| `src/Integrations/Cors.php` | Branch-level CORS; not a middleware stack |
 | `tests/Unit/RoutingTreeTest.php` | Matcher semantics |
 | `tests/Unit/RequestPathTest.php` | Normalization, `fromGlobals`, `onInt` rules |
 | `tests/Unit/ResponseTest.php` | JSON/HTML, header injection |

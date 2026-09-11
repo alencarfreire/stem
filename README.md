@@ -53,7 +53,7 @@ $app->run();
 ```
 
 ```bash
-composer require alencarfreire/stem:^0.4
+composer require alencarfreire/stem:^0.5
 php -S localhost:8080 index.php
 
 curl -s localhost:8080/users
