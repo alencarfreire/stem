@@ -1,6 +1,6 @@
 # StemPHP
 
-> Ultralight executable routing-tree micro-framework for PHP 8.3+. Packagist: alencarfreire/stem. Namespace: Stem\. Zero runtime dependencies. Current: v0.3.0.
+> Ultralight executable routing-tree micro-framework for PHP 8.3+. Packagist: alencarfreire/stem. Namespace: Stem\. Zero runtime dependencies. Current: v0.4.0.
 
 Human docs: https://alencarfreire.github.io/stem/ (EN) · https://alencarfreire.github.io/stem/pt/ (pt-BR)
 Source: https://github.com/alencarfreire/stem
@@ -11,7 +11,7 @@ This file is for AI agents **using or extending** StemPHP. Prefer it over scrapi
 ## Install
 
 ```bash
-composer require alencarfreire/stem:^0.3
+composer require alencarfreire/stem:^0.4
 ```
 
 PHP >= 8.3. Optional: ext-frankenphp, ext-swoole, spiral/roadrunner-http (examples only).
@@ -78,6 +78,9 @@ Right: `$r->on('users', function () use ($r) { ... })`
 | `$r->isParam($cb)` | exact remaining one segment |
 | `$r->run($branch)` | `callable(Request): void` on current path; does not seal |
 | `$r->branches(['users' => $cb, ...])` | O(1) next-segment lookup. Hit consumes the key then seals. Miss is a no-op. Callback remaining path is *after* the key. |
+| `$r->onUuid($cb)` / `$r->isUuid($cb)` | UUID segment (`8-4-4-4-12`, no regex). Prefix vs exact. |
+| `$r->when($pred, $cb)` | `$pred()` === true then `$cb()` and seal. |
+| `$r->ctx($key)` / `$r->ctx($key, $value)` | Request-scoped bag. Does not leak across `handle()`. |
 | `$r->json($data, $status=200)` | write JSON, set done, no throw |
 | `$r->html($html, $status=200)` | write HTML, set done, no throw |
 | `$r->halt($status, $body='', $headers=[])` | write + throw HaltException (`never`) |

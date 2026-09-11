@@ -115,6 +115,17 @@ final class RequestPathTest extends TestCase
         self::assertSame(PHP_INT_MAX, Router::fromPath('/' . (string) PHP_INT_MAX)->consumeInt());
     }
 
+    public function testUuidMatcherAcceptsCanonicalFormOnly(): void
+    {
+        $uuid = '550e8400-e29b-41d4-a716-446655440000';
+        self::assertTrue(Router::isUuid($uuid));
+        self::assertSame($uuid, Router::fromPath('/' . $uuid)->consumeUuid());
+        self::assertNull(Router::fromPath('/550e8400e29b41d4a716446655440000')->consumeUuid());
+        self::assertNull(Router::fromPath('/not-a-uuid')->consumeUuid());
+        self::assertNull(Router::fromPath('/' . $uuid . '/extra')->consumeExactUuid());
+        self::assertSame($uuid, Router::fromPath('/' . $uuid)->consumeExactUuid());
+    }
+
     public function testPeekAndSnapshotDoNotAdvanceTheOriginalCursor(): void
     {
         $router = Router::fromPath('/users/1');

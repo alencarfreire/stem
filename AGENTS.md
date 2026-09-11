@@ -2,7 +2,7 @@
 
 This file is the source of truth for **changing this repository**. Human docs: `docs/index.html` (EN), `docs/pt/index.html` (pt-BR). Consumer-facing machine spec: `docs/llms.txt`.
 
-Package: `alencarfreire/stem` · namespace `Stem\` · type `library` · PHP `>=8.3` · MIT · current tag `v0.3.0` (0.x: public API still treated as stable unless the user asks for a break).
+Package: `alencarfreire/stem` · namespace `Stem\` · type `library` · PHP `>=8.3` · MIT · current tag `v0.4.0` (0.x: public API still treated as stable unless the user asks for a break).
 
 After any behavioral change: `composer test` and `composer analyze` must pass. If you change routing semantics, examples, or public signatures, update **both** EN and pt-BR docs **and** `docs/llms.txt`.
 
@@ -69,6 +69,9 @@ Do not invent new public classes without a product reason. Prefer extending `Req
 | `isParam($cb)` | exact remaining one segment | `$cb($seg)` then seal |
 | `run($branch)` | invoke `callable(Request): void` on current remaining path | does **not** seal; miss lets siblings run |
 | `branches(array<string, callable(Request): void>)` | O(1) lookup of next segment (Roda `hash_branches`). Hit consumes the key. | runs branch then **seals**. Miss is a no-op |
+| `onUuid` / `isUuid` | UUID `8-4-4-4-12` hex (`ctype_xdigit`, no regex) | capture `string` then seal |
+| `when($pred, $cb)` | `$pred()` must be `true`; 0-arg | `$cb()` then seal; false is no-op |
+| `ctx($key)` / `ctx($key, $value)` | request bag on this `Request` only | get / set |
 | `json` / `html` / `redirect` / `noContent` | write response | written, **no throw** |
 | `halt` | write response | written, **throw HaltException** |
 

@@ -15,6 +15,9 @@ final class Request
     /** @var list<string> */
     private array $allowed = [];
 
+    /** @var array<string, mixed> */
+    private array $ctx = [];
+
     /**
      * @param array<string, string> $headers
      * @param array<string, mixed> $query
@@ -244,6 +247,17 @@ final class Request
         return str_contains($accept, 'application/json') || str_contains($accept, '+json');
     }
 
+    public function ctx(string $key, mixed $value = null): mixed
+    {
+        if (func_num_args() === 1) {
+            return $this->ctx[$key] ?? null;
+        }
+
+        $this->ctx[$key] = $value;
+
+        return $value;
+    }
+
     public function response(): Response
     {
         return $this->response ??= new Response();
@@ -385,6 +399,56 @@ final class Request
         }
 
         $callback($param);
+        $this->seal();
+    }
+
+    /**
+     * @param callable(string): void $callback
+     */
+    public function onUuid(callable $callback): void
+    {
+        if ($this->isDone()) {
+            return;
+        }
+
+        $uuid = $this->router->consumeUuid();
+        if ($uuid === null) {
+            return;
+        }
+
+        $callback($uuid);
+        $this->seal();
+    }
+
+    /**
+     * @param callable(string): void $callback
+     */
+    public function isUuid(callable $callback): void
+    {
+        if ($this->isDone()) {
+            return;
+        }
+
+        $uuid = $this->router->consumeExactUuid();
+        if ($uuid === null) {
+            return;
+        }
+
+        $callback($uuid);
+        $this->seal();
+    }
+
+    /**
+     * @param callable(): bool $predicate
+     * @param callable(): void $callback
+     */
+    public function when(callable $predicate, callable $callback): void
+    {
+        if ($this->isDone() || $predicate() !== true) {
+            return;
+        }
+
+        $callback();
         $this->seal();
     }
 

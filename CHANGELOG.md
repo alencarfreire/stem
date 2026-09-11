@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.4.0 — 2026-09-09
+
+### Added
+- `$r->ctx($key)` / `$r->ctx($key, $value)` — request-scoped bag (no leak across `handle()`)
+- `$r->onUuid()` / `$r->isUuid()` — UUID segment, no regex
+- `$r->when($pred, $cb)` — 0-arg predicate; seals on true
+
 ## 0.3.0 — 2026-09-09
 
 ### Added

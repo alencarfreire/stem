@@ -213,6 +213,46 @@ final class Router
         return $segment;
     }
 
+    public function consumeExactUuid(): ?string
+    {
+        if ($this->offset !== $this->count - 1) {
+            return null;
+        }
+
+        return $this->consumeUuid();
+    }
+
+    public function consumeUuid(): ?string
+    {
+        if ($this->offset === $this->count) {
+            return null;
+        }
+
+        $segment = $this->segments[$this->offset];
+        if (!self::isUuid($segment)) {
+            return null;
+        }
+
+        $this->offset++;
+
+        return $segment;
+    }
+
+    public static function isUuid(string $segment): bool
+    {
+        if (strlen($segment) !== 36) {
+            return false;
+        }
+
+        if ($segment[8] !== '-' || $segment[13] !== '-' || $segment[18] !== '-' || $segment[23] !== '-') {
+            return false;
+        }
+
+        $hex = str_replace('-', '', $segment);
+
+        return strlen($hex) === 32 && ctype_xdigit($hex);
+    }
+
     public function snapshot(): self
     {
         return new self($this->segments, $this->offset, $this->path);

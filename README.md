@@ -53,7 +53,7 @@ $app->run();
 ```
 
 ```bash
-composer require alencarfreire/stem:^0.3
+composer require alencarfreire/stem:^0.4
 php -S localhost:8080 index.php
 
 curl -s localhost:8080/users
@@ -79,6 +79,9 @@ The route closure **runs on every request**. Matchers consume the remaining path
 | `$r->isParam($cb)` | Exact remaining one segment. |
 | `$r->run($branch)` | Run `function (Request $r)` on the current path; does not seal on miss. |
 | `$r->branches(['users' => $cb])` | O(1) lookup of the next segment (Roda `hash_branches`). |
+| `$r->onUuid($cb)` / `$r->isUuid($cb)` | UUID segment, prefix or exact. |
+| `$r->when($pred, $cb)` | Run `$cb` and seal if `$pred()` is `true`. |
+| `$r->ctx($key)` / `$r->ctx($key, $value)` | Request-scoped context bag. |
 | `$r->json($data, $status = 200)` | JSON body + `Content-Type`. Sets `$done`. Does not throw. |
 | `$r->html($html, $status = 200)` | HTML body. Sets `$done`. Does not throw. |
 | `$r->halt($status, $body, $headers)` | Early exit (`never`). Throws an internal `HaltException`. |

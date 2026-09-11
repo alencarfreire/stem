@@ -45,6 +45,26 @@ final class LifecycleTest extends TestCase
         self::assertArrayNotHasKey('X-User', $bob->headers());
     }
 
+    public function testCtxDoesNotLeakAcrossHandleCalls(): void
+    {
+        $app = (new App())->route(function (Request $r): void {
+            $r->onParam(function (string $name) use ($r): void {
+                if ($r->ctx('seen') !== null) {
+                    $r->json(['leaked' => $r->ctx('seen')], 500);
+
+                    return;
+                }
+                $r->ctx('seen', $name);
+                $r->get(fn () => $r->json(['name' => $r->ctx('seen')]));
+            });
+        });
+
+        self::assertSame('{"name":"ada"}', $app->handle(Request::create('GET', '/ada'))->body());
+        $second = $app->handle(Request::create('GET', '/linus'));
+        self::assertSame(200, $second->status());
+        self::assertSame('{"name":"linus"}', $second->body());
+    }
+
     public function testCoreClassesHaveNoStaticRequestState(): void
     {
         foreach ([App::class, Request::class, Response::class, Router::class] as $class) {

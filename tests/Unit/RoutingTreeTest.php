@@ -245,6 +245,59 @@ final class RoutingTreeTest extends TestCase
         self::assertSame([], $log->hits);
     }
 
+    public function testOnUuidAndIsUuid(): void
+    {
+        $uuid = '550e8400-e29b-41d4-a716-446655440000';
+        $app = $this->app(function (Request $r): void {
+            $r->on('items', function () use ($r): void {
+                $r->isUuid(function (string $id) use ($r): void {
+                    $r->get(fn () => $r->json(['id' => $id, 'exact' => true]));
+                });
+                $r->onUuid(function (string $id) use ($r): void {
+                    $r->on('meta', function () use ($r, $id): void {
+                        $r->get(fn () => $r->json(['id' => $id, 'meta' => true]));
+                    });
+                });
+            });
+        });
+
+        self::assertSame(
+            '{"id":"' . $uuid . '","exact":true}',
+            $this->handle($app, 'GET', '/items/' . $uuid)->body(),
+        );
+        self::assertSame(
+            '{"id":"' . $uuid . '","meta":true}',
+            $this->handle($app, 'GET', '/items/' . $uuid . '/meta')->body(),
+        );
+        self::assertSame(404, $this->handle($app, 'GET', '/items/not-a-uuid')->status());
+    }
+
+    public function testWhenSealsOnlyIfPredicateIsTrue(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->when(fn () => $r->wantsJson(), fn () => $r->json(['json' => true]));
+            $r->when(fn () => true, fn () => $r->html('<p>html</p>'));
+        });
+
+        $json = $this->handle($app, 'GET', '/', ['Accept' => 'application/json']);
+        self::assertSame('{"json":true}', $json->body());
+
+        $html = $this->handle($app, 'GET', '/', ['Accept' => 'text/html']);
+        self::assertSame('<p>html</p>', $html->body());
+    }
+
+    public function testCtxStoresValuesForTheCurrentRequest(): void
+    {
+        $app = $this->app(function (Request $r): void {
+            $r->onInt(function (int $id) use ($r): void {
+                $r->ctx('id', $id);
+                $r->get(fn () => $r->json(['id' => $r->ctx('id')]));
+            });
+        });
+
+        self::assertSame('{"id":9}', $this->handle($app, 'GET', '/9')->body());
+    }
+
     public function testNestedUsersIdGet(): void
     {
         $app = $this->canonical();
